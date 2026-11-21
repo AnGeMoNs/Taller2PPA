@@ -1,0 +1,97 @@
+using Unity.VisualScripting;
+using UnityEngine;
+
+public class MovimientoSimple : MonoBehaviour
+{
+    //campo serializado para editar en el inspector
+    [SerializeField] private int moveSpeed = 5;
+    [SerializeField] private int jumpForce = 10;
+    [SerializeField] private float groundCheckDistance = 0.5f;
+    [SerializeField] private LayerMask groundLayer;
+
+    // componentes y variables a usar en el script
+    private Rigidbody2D rb;
+    private SpriteRenderer spriteRenderer;
+    private Animator animator;
+    private float currentVelocityX; 
+    private bool isGrounded = true;
+
+    //bloque start que se ejecuta una sola vez al inicio de la escena
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        animator = GetComponent<Animator>();
+    }
+
+    //bloque update se ejecuta 60 veces por segundo (dependiente de FPS) 
+    void Update()
+    {
+        movementinput();    
+        JumpInput();
+        
+    }
+    //bloque FixedUpdate se ejecuta 50 veces por segundo (dependiente del tiempo)
+    void FixedUpdate()
+    {
+        ApplyMovement();
+        UpdateAnimator();
+        CheckGrounded();
+    }
+
+    void JumpInput()
+    {
+        if (Input.GetKey(KeyCode.Space) && isGrounded)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocityX, jumpForce);
+            isGrounded = false;
+        }
+    }
+
+    //aqui se manejan las teclas presionadas
+    public void movementinput()
+    {
+          currentVelocityX = 0f;
+
+        if(Input.GetKey(KeyCode.A)) currentVelocityX -= 1f;
+        if(Input.GetKey(KeyCode.D)) currentVelocityX += 1f;
+
+        if (currentVelocityX > 0)
+        {
+            spriteRenderer.flipX = false;
+        }else if(currentVelocityX < 0)
+        {
+            spriteRenderer.flipX = true;
+        }
+    } 
+
+    //funcion para aplicar el movimiento
+    private void ApplyMovement()
+    {
+        rb.linearVelocity = new Vector2(currentVelocityX * moveSpeed, rb.linearVelocityY);
+    }
+
+    //funcion para actualizar el animador
+     private void UpdateAnimator()
+    {
+        animator.SetFloat("velocityX",Mathf.Abs(rb.linearVelocityX));
+        animator.SetFloat("velocityY",Mathf.Abs(rb.linearVelocityY));
+    }
+
+    private void CheckGrounded()
+    {
+        RaycastHit2D hit = Physics2D.Raycast(
+            transform.position,
+            Vector2.down,
+            groundCheckDistance,
+            groundLayer
+        );
+
+        isGrounded = hit.collider != null;
+
+        // Debug: mostrar el raycast
+        Debug.DrawRay(transform.position, Vector2.down * groundCheckDistance, isGrounded ? Color.green : Color.red);
+
+        animator.SetBool("IsGrounded", isGrounded);
+    }
+}

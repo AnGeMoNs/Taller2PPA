@@ -1,0 +1,63 @@
+using Unity.VisualScripting;
+using UnityEngine;
+
+public class MovimientoSimple : MonoBehaviour
+{
+    //campo serializado para editar en el inspector
+    [SerializeField] private int moveSpeed = 5;
+
+    // componentes y variables a usar en el script
+    private Rigidbody2D rb;
+    private SpriteRenderer spriteRenderer;
+    private Animator animator;
+    private float currentVelocityX; 
+
+    //bloque start que se ejecuta una sola vez al inicio de la escena
+    void Start()
+    {
+        rb = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        animator = GetComponent<Animator>();
+    }
+
+    //bloque update se ejecuta 60 veces por segundo (dependiente de FPS) 
+    void Update()
+    {
+        movementinput();
+    }
+    //bloque FixedUpdate se ejecuta 50 veces por segundo (dependiente del tiempo)
+    void FixedUpdate()
+    {
+        ApplyMovement();
+        UpdateAnimator();
+    }
+
+    //aqui se manejan las teclas presionadas
+    public void movementinput()
+    {
+          currentVelocityX = 0f;
+
+        if(Input.GetKey(KeyCode.A)) currentVelocityX -= 1f;
+        if(Input.GetKey(KeyCode.D)) currentVelocityX += 1f;
+
+        if (currentVelocityX > 0)
+        {
+            spriteRenderer.flipX = false;
+        }else if(currentVelocityX < 0)
+        {
+            spriteRenderer.flipX = true;
+        }
+    } 
+
+    //funcion para aplicar el movimiento
+    private void ApplyMovement()
+    {
+        rb.linearVelocity = new Vector2(currentVelocityX * moveSpeed, rb.linearVelocityY);
+    }
+
+    //funcion para actualizar el animador
+     private void UpdateAnimator()
+    {
+        animator.SetFloat("velocityX",Mathf.Abs(rb.linearVelocityX));
+    }
+}
