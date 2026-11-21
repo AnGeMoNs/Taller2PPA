@@ -21,7 +21,6 @@ public class SlimeEnemy : Enemy
         ElegirDireccionErratica();
     }
 
-    // Alterna velocidad lentamente simulando saltos gelatinosos
     protected override float FactorVelocidadActual()
     {
         return 0.65f + 0.65f * Mathf.Abs(Mathf.Sin(Time.time * 3.1f + faseZigZag));
@@ -48,7 +47,6 @@ public class SlimeEnemy : Enemy
         if (Time.time < pausaHasta)
         {
             Detener();
-            if (Time.time >= ataqueVisualHasta) Animar("Idle");
             return true;
         }
 
@@ -59,13 +57,11 @@ public class SlimeEnemy : Enemy
             {
                 pausaHasta = Time.time + Random.Range(0.55f, 1.15f);
                 Detener();
-                Animar("Idle");
                 return true;
             }
             ElegirDireccionErratica();
         }
 
-        // Regresa hacia su zona si se aleja demasiado
         Vector3 desdeOrigen = transform.position - Origen;
         desdeOrigen.y = 0f;
         if (desdeOrigen.magnitude > RadioTerritorio * 0.65f)

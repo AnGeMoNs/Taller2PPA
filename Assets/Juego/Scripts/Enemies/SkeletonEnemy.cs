@@ -39,12 +39,8 @@ public class SkeletonEnemy : Enemy
         {
             siguienteAtaque = Time.time + 1.55f;
             momentoImpacto = Time.time + 0.38f;
-            Animar("Attack", true);
+            ActivarAtaque();
             AudioManager.Reproducir("Skeleton_Attack", transform.position);
-        }
-        else if (Time.time > siguienteAtaque - 0.55f)
-        {
-            Animar("Idle");
         }
         return true;
     }
@@ -87,7 +83,6 @@ public class SkeletonEnemy : Enemy
         if (Time.time < pausaPatrullaHasta)
         {
             Detener();
-            Animar("Idle");
             return true;
         }
 
@@ -102,7 +97,6 @@ public class SkeletonEnemy : Enemy
             pausaPatrullaHasta = Time.time + 0.85f;
             ReiniciarBloqueo();
             Detener();
-            Animar("Idle");
             return true;
         }
 

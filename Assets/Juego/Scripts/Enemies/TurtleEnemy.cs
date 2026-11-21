@@ -3,7 +3,8 @@ using UnityEngine;
 // Tortuga con pinchos: sigue una ruta definida de forma lenta, dana al contacto y se defiende con su caparazon
 public class TurtleEnemy : Enemy
 {
-    [SerializeField] private Vector3[] desplazamientosRuta =
+    [SerializeField]
+    private Vector3[] desplazamientosRuta =
     {
         new Vector3(0.0f, 0f, 0.0f),
         new Vector3(-4.0f, 0f, 0.0f),
@@ -34,15 +35,15 @@ public class TurtleEnemy : Enemy
         if (Time.time < defensaHasta)
         {
             Detener();
-            if (TieneEstadoAnimacion("Defend")) Animar("Defend");
-            else Animar("Idle");
+            SetDefendiendo(true);
             return true;
         }
+
+        SetDefendiendo(false);
 
         if (Time.time < pausaEnPuntoHasta)
         {
             Detener();
-            if (Time.time >= ataqueVisualHasta) Animar("Idle");
             return true;
         }
 
@@ -63,7 +64,6 @@ public class TurtleEnemy : Enemy
             pausaEnPuntoHasta = Time.time + 0.65f;
             ReiniciarBloqueo();
             Detener();
-            if (Time.time >= ataqueVisualHasta) Animar("Idle");
             return true;
         }
 
@@ -71,7 +71,6 @@ public class TurtleEnemy : Enemy
         return true;
     }
 
-    // Reduce el dano a la mitad mientras esta metida en su caparazon
     protected override int ModificarDanoRecibido(int cantidad)
     {
         return Time.time < defensaHasta ? Mathf.Max(1, Mathf.RoundToInt(cantidad * 0.5f)) : cantidad;
@@ -82,12 +81,11 @@ public class TurtleEnemy : Enemy
         if (Time.time >= defensaHasta)
         {
             defensaHasta = Time.time + 1.25f;
-            if (TieneEstadoAnimacion("Defend")) Animar("Defend", true);
-            else base.AlRecibirDano(danoAplicado);
+            SetDefendiendo(true);
         }
-        else if (TieneEstadoAnimacion("Hit"))
+        else
         {
-            Animar("Hit", true);
+            ActivarGolpe();
         }
     }
 

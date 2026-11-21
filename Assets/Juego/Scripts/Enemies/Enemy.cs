@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Behavior;
 
-// Clase base abstracta de los enemigos con atributos comunes y metodos polimorficos
+// Clase base abstracta de los enemigos con atributos comunes y control de parametros del Animator
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public abstract class Enemy : MonoBehaviour
 {
@@ -17,7 +17,6 @@ public abstract class Enemy : MonoBehaviour
 
     private static readonly int PropColor = Shader.PropertyToID("_Color");
     private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
-    private static readonly Dictionary<string, int> CacheHashes = new Dictionary<string, int>();
     private static Material materialParticulasCompartido;
 
     private BehaviorGraphAgent agente;
@@ -35,9 +34,9 @@ public abstract class Enemy : MonoBehaviour
     private Vector3 escalaInicial;
     private Vector3 origen;
     private int puntoActual;
-    private string animacionActual;
     private Vector3 direccionMovimiento;
     private readonly RaycastHit[] bufferRayos = new RaycastHit[16];
+    private readonly HashSet<string> parametrosAnimator = new HashSet<string>();
 
     protected VidaJugador jugador;
     protected float siguienteAtaque;
@@ -69,7 +68,6 @@ public abstract class Enemy : MonoBehaviour
         origen = transform.position;
         agente = GetComponent<BehaviorGraphAgent>();
 
-        // Captura solo los renderers propios del enemigo antes de agregar la barra de vida
         List<Renderer> listaRenderers = new List<Renderer>();
         foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
         {
@@ -87,7 +85,71 @@ public abstract class Enemy : MonoBehaviour
         {
             skin.updateWhenOffscreen = true;
         }
-        if (animator != null) animator.applyRootMotion = false;
+
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+            CachearParametrosAnimator();
+        }
+    }
+
+    private void CachearParametrosAnimator()
+    {
+        parametrosAnimator.Clear();
+        if (animator == null || animator.runtimeAnimatorController == null) return;
+        foreach (AnimatorControllerParameter param in animator.parameters)
+        {
+            parametrosAnimator.Add(param.name);
+        }
+    }
+
+    private bool TieneParametro(string nombre)
+    {
+        if (animator == null || animator.runtimeAnimatorController == null) return false;
+        if (parametrosAnimator.Count == 0) CachearParametrosAnimator();
+        return parametrosAnimator.Contains(nombre);
+    }
+
+    protected void SetCaminando(bool caminando)
+    {
+        if (TieneParametro("Caminando"))
+        {
+            animator.SetBool("Caminando", caminando);
+        }
+    }
+
+    protected void SetDefendiendo(bool defendiendo)
+    {
+        if (TieneParametro("Defendiendo"))
+        {
+            animator.SetBool("Defendiendo", defendiendo);
+        }
+    }
+
+    protected void ActivarAtaque()
+    {
+        if (TieneParametro("Atacar"))
+        {
+            animator.SetTrigger("Atacar");
+        }
+    }
+
+    protected void ActivarGolpe()
+    {
+        if (TieneParametro("Golpe"))
+        {
+            animator.SetTrigger("Golpe");
+        }
+    }
+
+    protected void ActivarMuerte()
+    {
+        if (TieneParametro("Atacar")) animator.ResetTrigger("Atacar");
+        if (TieneParametro("Golpe")) animator.ResetTrigger("Golpe");
+        if (TieneParametro("Morir"))
+        {
+            animator.SetTrigger("Morir");
+        }
     }
 
     private void Start()
@@ -167,7 +229,6 @@ public abstract class Enemy : MonoBehaviour
         Quaternion rotObjetivo = Quaternion.LookRotation(direccionMovimiento);
         cuerpo.MoveRotation(Quaternion.Slerp(cuerpo.rotation, rotObjetivo, 1f - Mathf.Exp(-10f * Time.fixedDeltaTime)));
 
-        // Revisa colisiones antes de moverse para no atravesar muros ni empujar al jugador
         if (cuerpo.SweepTest(direccionMovimiento, out RaycastHit hit, paso.magnitude + 0.05f, QueryTriggerInteraction.Ignore))
         {
             paso = direccionMovimiento * Mathf.Max(0f, Mathf.Min(paso.magnitude, hit.distance - 0.05f));
@@ -179,7 +240,12 @@ public abstract class Enemy : MonoBehaviour
 
     protected virtual float FactorVelocidadActual() => 1f;
 
-    public void Detener() { direccionMovimiento = Vector3.zero; }
+    public void Detener()
+    {
+        direccionMovimiento = Vector3.zero;
+        SetCaminando(false);
+    }
+
     protected void ReiniciarBloqueo() { bloqueoRuta = 0f; }
     protected float Distancia => jugador == null ? float.PositiveInfinity : Vector3.Distance(transform.position, jugador.transform.position);
 
@@ -203,34 +269,11 @@ public abstract class Enemy : MonoBehaviour
         return true;
     }
 
-    private static int ObtenerHashEstado(string estado)
-    {
-        if (!CacheHashes.TryGetValue(estado, out int hash))
-        {
-            hash = Animator.StringToHash("Base Layer." + estado);
-            CacheHashes[estado] = hash;
-        }
-        return hash;
-    }
-
-    protected bool TieneEstadoAnimacion(string estado)
-    {
-        return animator != null && animator.runtimeAnimatorController != null && animator.HasState(0, ObtenerHashEstado(estado));
-    }
-
-    protected void Animar(string estado, bool forzar = false)
-    {
-        if ((!forzar && animacionActual == estado && estado != "Attack") || !TieneEstadoAnimacion(estado)) return;
-        animacionActual = estado;
-        animator.CrossFade(ObtenerHashEstado(estado), 0.08f, 0, 0f);
-    }
-
     protected void MoverEnDireccion(Vector3 dir, bool actualizarAnimacion = true)
     {
         dir.y = 0f;
         direccionMovimiento = dir.sqrMagnitude > 0.001f ? dir.normalized : Vector3.zero;
 
-        // Si se atasca contra una esquina intenta rodearla lateralmente
         if (direccionMovimiento != Vector3.zero && bloqueoRuta > 0.35f)
         {
             Vector3 desvio = Quaternion.Euler(0f, 60f, 0f) * direccionMovimiento;
@@ -246,7 +289,7 @@ public abstract class Enemy : MonoBehaviour
 
         if (actualizarAnimacion)
         {
-            Animar(direccionMovimiento.sqrMagnitude > 0f ? "Walk" : "Idle");
+            SetCaminando(direccionMovimiento.sqrMagnitude > 0f);
         }
     }
 
@@ -257,7 +300,6 @@ public abstract class Enemy : MonoBehaviour
         if (dir.sqrMagnitude <= 0.02f)
         {
             Detener();
-            if (actualizarAnimacion) Animar("Idle");
             return;
         }
         MoverEnDireccion(dir, actualizarAnimacion);
@@ -301,7 +343,7 @@ public abstract class Enemy : MonoBehaviour
         if (!EnJuego || Time.time < siguienteAtaque) return false;
         siguienteAtaque = Time.time + 1.1f;
         jugador.RecibirDano(dano);
-        if (TieneEstadoAnimacion("Attack")) Animar("Attack", true);
+        ActivarAtaque();
         AudioManager.Reproducir(nombreAudio, transform.position);
         return true;
     }
@@ -320,7 +362,7 @@ public abstract class Enemy : MonoBehaviour
 
     protected virtual void AlRecibirDano(int danoAplicado)
     {
-        if (TieneEstadoAnimacion("Hit")) Animar("Hit", true);
+        ActivarGolpe();
     }
 
     public void RecibirDano(int cantidad) => RecibirDano(cantidad, null);
@@ -345,7 +387,7 @@ public abstract class Enemy : MonoBehaviour
         Muerto = true;
         tiempoMuerte = Time.time;
         Detener();
-        Animar("Death", true);
+        ActivarMuerte();
         if (agente != null) agente.enabled = false;
         foreach (Collider c in GetComponentsInChildren<Collider>()) c.enabled = false;
         AudioManager.Reproducir("Enemy_Death", transform.position);
@@ -387,7 +429,6 @@ public abstract class Enemy : MonoBehaviour
         }
     }
 
-    // Genera particulas al morir reutilizando un unico material compartido en memoria
     private void GenerarParticulasMuerte()
     {
         GameObject fx = new GameObject("FX_Muerte_" + name);
