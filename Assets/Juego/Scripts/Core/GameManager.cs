@@ -22,8 +22,10 @@ public class GameManager : MonoBehaviour
     private MazmorraPuzzles puzzles;
     private Vector3 posicionInicio;
     private readonly HashSet<string> enemigosMuertos = new HashSet<string>();
+    private readonly HashSet<string> enemigosOleadaFinal = new HashSet<string>();
     private static string perfilPorCargar;
     private bool esperandoGameOver;
+    private bool oleadaFinalActivada;
 
     private void Awake()
     {
@@ -102,6 +104,12 @@ public class GameManager : MonoBehaviour
         {
             Guardar();
         }
+
+        // Activa la musica del jefe final al entrar a la camara final (z > 18.5)
+        if (EnJuego && vidaJugador != null && vidaJugador.transform.position.z > 18.5f)
+        {
+            AudioManager.ActivarMusicaJefe();
+        }
     }
 
     private void RegistrarMuerte(Enemy enemigo)
@@ -109,6 +117,11 @@ public class GameManager : MonoBehaviour
         if (enemigo != null)
         {
             enemigosMuertos.Add(enemigo.Id);
+        }
+
+        if (oleadaFinalActivada && enemigosOleadaFinal.Count > 0 && enemigosOleadaFinal.IsSubsetOf(enemigosMuertos))
+        {
+            AudioManager.ActivarMusicaSinEnemigos();
         }
     }
 
@@ -119,6 +132,10 @@ public class GameManager : MonoBehaviour
         if (enemigo == null) return;
         enemigo.Murio -= RegistrarMuerte;
         enemigo.Murio += RegistrarMuerte;
+
+        oleadaFinalActivada = true;
+        enemigosOleadaFinal.Add(enemigo.Id);
+        AudioManager.ActivarMusicaJefe();
     }
 
     public void Nueva(string nombre)
@@ -216,6 +233,16 @@ public class GameManager : MonoBehaviour
         int vidaFinal = potenciado && datos.versionFinal == 0 ? VidaJugador.VidaConReliquia : datos.vida;
         vidaJugador.RestaurarMaxima(potenciado, vidaFinal);
         Physics.SyncTransforms();
+
+        // Sincroniza la fase musical si la partida cargada ya estaba en la sala final o con la oleada vencida
+        if (enemigosMuertos.Contains("Oleada_Esqueleto_1") && enemigosMuertos.Contains("Oleada_Tortuga_1"))
+        {
+            AudioManager.ActivarMusicaSinEnemigos();
+        }
+        else if (vidaJugador.transform.position.z > 18.5f)
+        {
+            AudioManager.ActivarMusicaJefe();
+        }
     }
 
     public void Guardar() => Guardar(true);
@@ -275,6 +302,8 @@ public class GameManager : MonoBehaviour
 
         Cursor.lockState = EnJuego ? CursorLockMode.Locked : CursorLockMode.None;
         Cursor.visible = !EnJuego;
+
+        AudioManager.ActualizarEstadoJuego(nuevoEstado);
 
         if (hud != null)
         {
