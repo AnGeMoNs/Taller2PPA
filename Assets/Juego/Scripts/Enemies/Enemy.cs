@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Behavior;
 
-// Clase base abstracta de los enemigos con atributos comunes y control de parametros del Animator
+// Clase base abstracta de los enemigos con Animator por hashes, aturdimiento, modo elite y botin
 [RequireComponent(typeof(Rigidbody), typeof(CapsuleCollider))]
 public abstract class Enemy : MonoBehaviour
 {
@@ -17,6 +17,11 @@ public abstract class Enemy : MonoBehaviour
 
     private static readonly int PropColor = Shader.PropertyToID("_Color");
     private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
+    private static readonly int HashCaminando = Animator.StringToHash("Caminando");
+    private static readonly int HashDefendiendo = Animator.StringToHash("Defendiendo");
+    private static readonly int HashAtacar = Animator.StringToHash("Atacar");
+    private static readonly int HashGolpe = Animator.StringToHash("Golpe");
+    private static readonly int HashMorir = Animator.StringToHash("Morir");
     private static Material materialParticulasCompartido;
 
     private BehaviorGraphAgent agente;
@@ -31,12 +36,13 @@ public abstract class Enemy : MonoBehaviour
     private float flashHasta;
     private bool flashActivo;
     private float tiempoMuerte = -1f;
+    private float aturdidoHasta;
     private Vector3 escalaInicial;
     private Vector3 origen;
     private int puntoActual;
     private Vector3 direccionMovimiento;
     private readonly RaycastHit[] bufferRayos = new RaycastHit[16];
-    private readonly HashSet<string> parametrosAnimator = new HashSet<string>();
+    private readonly HashSet<int> parametrosAnimator = new HashSet<int>();
 
     protected VidaJugador jugador;
     protected float siguienteAtaque;
@@ -49,7 +55,12 @@ public abstract class Enemy : MonoBehaviour
     protected virtual Color ColorParticulasMuerte => new Color(0.85f, 0.82f, 0.72f);
     protected virtual float TiempoDesaparicion => 1.55f;
 
-    public bool PuedeActuar => EnJuego;
+    public bool EsElite { get; private set; }
+    public string NombreElite { get; private set; }
+    public virtual string NombreVisible => EsElite && !string.IsNullOrEmpty(NombreElite) ? NombreElite : gameObject.name;
+    public virtual string EstadoVisual => EstaAturdido ? "ATURDIDO" : "";
+    public bool EstaAturdido => !Muerto && Time.time < aturdidoHasta;
+    public bool PuedeActuar => EnJuego && !EstaAturdido;
     public void NotificarNodo() { ultimoNodo = Time.time; }
     public bool Muerto { get; private set; }
     public int VidaActual => vida;
@@ -57,6 +68,12 @@ public abstract class Enemy : MonoBehaviour
     public string Id => gameObject.name;
     public event Action<Enemy> Murio;
     protected bool EnJuego => GameManager.Instance != null && GameManager.Instance.EnJuego && !Muerto && jugador != null && !jugador.Muerto;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ReiniciarEstaticos()
+    {
+        materialParticulasCompartido = null;
+    }
 
     protected virtual void Awake()
     {
@@ -93,63 +110,89 @@ public abstract class Enemy : MonoBehaviour
         }
     }
 
+    public void ConfigurarElite(string titulo, float multiplicadorVida, float multiplicadorDano, float factorEscala)
+    {
+        EsElite = true;
+        NombreElite = titulo;
+        vidaMaxima = Mathf.RoundToInt(vidaMaxima * multiplicadorVida);
+        vida = vidaMaxima;
+        dano = Mathf.RoundToInt(dano * multiplicadorDano);
+        transform.localScale = Vector3.one * factorEscala;
+        escalaInicial = transform.localScale;
+
+        GameObject aura = new GameObject("Aura_Elite");
+        aura.transform.SetParent(transform, false);
+        aura.transform.localPosition = Vector3.up * 1.15f;
+        Light luz = aura.AddComponent<Light>();
+        luz.type = LightType.Point;
+        luz.color = new Color(1f, 0.35f, 0.16f);
+        luz.intensity = 2.4f;
+        luz.range = 4.6f;
+        luz.shadows = LightShadows.None;
+    }
+
     private void CachearParametrosAnimator()
     {
         parametrosAnimator.Clear();
         if (animator == null || animator.runtimeAnimatorController == null) return;
         foreach (AnimatorControllerParameter param in animator.parameters)
         {
-            parametrosAnimator.Add(param.name);
+            parametrosAnimator.Add(param.nameHash);
         }
     }
 
-    private bool TieneParametro(string nombre)
+    private bool TieneParametro(int hash)
     {
         if (animator == null || animator.runtimeAnimatorController == null) return false;
         if (parametrosAnimator.Count == 0) CachearParametrosAnimator();
-        return parametrosAnimator.Contains(nombre);
+        return parametrosAnimator.Contains(hash);
     }
 
     protected void SetCaminando(bool caminando)
     {
-        if (TieneParametro("Caminando"))
+        if (TieneParametro(HashCaminando))
         {
-            animator.SetBool("Caminando", caminando);
+            animator.SetBool(HashCaminando, caminando);
         }
     }
 
     protected void SetDefendiendo(bool defendiendo)
     {
-        if (TieneParametro("Defendiendo"))
+        if (TieneParametro(HashDefendiendo))
         {
-            animator.SetBool("Defendiendo", defendiendo);
+            animator.SetBool(HashDefendiendo, defendiendo);
         }
     }
 
     protected void ActivarAtaque()
     {
-        if (TieneParametro("Atacar"))
+        if (TieneParametro(HashAtacar))
         {
-            animator.SetTrigger("Atacar");
+            animator.SetTrigger(HashAtacar);
         }
     }
 
     protected void ActivarGolpe()
     {
-        if (TieneParametro("Golpe"))
+        if (TieneParametro(HashGolpe))
         {
-            animator.SetTrigger("Golpe");
+            animator.SetTrigger(HashGolpe);
         }
     }
 
     protected void ActivarMuerte()
     {
-        if (TieneParametro("Atacar")) animator.ResetTrigger("Atacar");
-        if (TieneParametro("Golpe")) animator.ResetTrigger("Golpe");
-        if (TieneParametro("Morir"))
+        if (TieneParametro(HashAtacar)) animator.ResetTrigger(HashAtacar);
+        if (TieneParametro(HashGolpe)) animator.ResetTrigger(HashGolpe);
+        if (TieneParametro(HashMorir))
         {
-            animator.SetTrigger("Morir");
+            animator.SetTrigger(HashMorir);
         }
+    }
+
+    protected void MostrarTelegrafoAtaque()
+    {
+        EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 2.15f, "!", new Color(1f, 0.25f, 0.18f), 1.35f);
     }
 
     private void Start()
@@ -174,6 +217,12 @@ public abstract class Enemy : MonoBehaviour
         }
 
         if (!EnJuego)
+        {
+            Detener();
+            return;
+        }
+
+        if (EstaAturdido)
         {
             Detener();
             return;
@@ -214,7 +263,7 @@ public abstract class Enemy : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (!EnJuego) return;
+        if (!EnJuego || EstaAturdido) return;
 
         Vector3 distancia = jugador.transform.position - transform.position;
         if (Mathf.Abs(distancia.y) < 0.45f && (distancia.x * distancia.x + distancia.z * distancia.z) <= 0.82f * 0.82f)
@@ -340,11 +389,11 @@ public abstract class Enemy : MonoBehaviour
 
     protected bool GolpeDeContacto(string nombreAudio)
     {
-        if (!EnJuego || Time.time < siguienteAtaque) return false;
+        if (!EnJuego || EstaAturdido || Time.time < siguienteAtaque) return false;
         siguienteAtaque = Time.time + 1.1f;
-        jugador.RecibirDano(dano);
+        jugador.RecibirDano(dano, this, transform.position);
         ActivarAtaque();
-        AudioManager.Reproducir(nombreAudio, transform.position);
+        AudioManager.Reproducir(nombreAudio, transform.position, 0.9f, 1f, 0.07f);
         return true;
     }
 
@@ -365,38 +414,81 @@ public abstract class Enemy : MonoBehaviour
         ActivarGolpe();
     }
 
-    public void RecibirDano(int cantidad) => RecibirDano(cantidad, null);
+    protected virtual void AlSerAturdido() { }
 
-    public void RecibirDano(int cantidad, Vector3? origenGolpe)
+    public void Aturdir(float duracion, Vector3? origenGolpe = null)
+    {
+        if (Muerto || duracion <= 0f) return;
+
+        bool yaAturdido = EstaAturdido;
+        aturdidoHasta = Mathf.Max(aturdidoHasta, Time.time + duracion);
+        Detener();
+        SetDefendiendo(false);
+        AlSerAturdido();
+        ActivarGolpe();
+        AplicarRetroceso(origenGolpe, 0.65f);
+
+        if (!yaAturdido)
+        {
+            EfectosVisuales.EstrellasAturdimiento(transform, duracion);
+            EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 2.15f, "ATURDIDO", new Color(1f, 0.90f, 0.25f), 1.0f);
+            AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Aturdimiento, 0.6f, transform.position);
+        }
+    }
+
+    public void RecibirDano(int cantidad) => RecibirDano(cantidad, null, false, 0.35f);
+
+    public void RecibirDano(int cantidad, Vector3? origenGolpe) => RecibirDano(cantidad, origenGolpe, false, 0.35f);
+
+    public void RecibirDano(int cantidad, Vector3? origenGolpe, bool critico, float distanciaRetroceso)
     {
         if (Muerto || cantidad <= 0) return;
 
-        int danoFinal = Mathf.Max(1, ModificarDanoRecibido(cantidad));
+        int cantidadBase = EstaAturdido ? Mathf.RoundToInt(cantidad * 1.45f) : cantidad;
+        int danoFinal = Mathf.Max(1, ModificarDanoRecibido(cantidadBase));
+        bool reducido = danoFinal < cantidadBase;
+        bool esCritico = critico || EstaAturdido;
+
         vida = Mathf.Max(0, vida - danoFinal);
         if (barraVida != null) barraVida.Actualizar(vida, vidaMaxima);
-        AudioManager.Reproducir("Enemy_Hit", transform.position);
-        ActivarFlashGolpe();
+        AudioManager.Reproducir("Enemy_Hit", transform.position, esCritico ? 1.0f : 0.85f, esCritico ? 1.15f : 1.0f, 0.08f);
+        ActivarFlashGolpe(esCritico);
+
+        Vector3 puntoImpacto = transform.position + Vector3.up * 1.0f;
+        EfectosVisuales.ChispasGolpe(puntoImpacto, esCritico, reducido);
+
+        Color colorTexto = reducido
+            ? new Color(0.65f, 0.85f, 1f)
+            : (esCritico ? new Color(1f, 0.88f, 0.24f) : Color.white);
+        string etiqueta = esCritico ? $"¡{danoFinal}!" : danoFinal.ToString();
+        EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 1.75f, etiqueta, colorTexto, esCritico ? 1.22f : 0.95f);
 
         if (vida > 0)
         {
             AlRecibirDano(danoFinal);
-            AplicarRetroceso(origenGolpe);
+            AplicarRetroceso(origenGolpe, distanciaRetroceso);
             return;
         }
 
         Muerto = true;
         tiempoMuerte = Time.time;
         Detener();
+        SetDefendiendo(false);
         ActivarMuerte();
         if (agente != null) agente.enabled = false;
         foreach (Collider c in GetComponentsInChildren<Collider>()) c.enabled = false;
-        AudioManager.Reproducir("Enemy_Death", transform.position);
+        AudioManager.Reproducir("Enemy_Death", transform.position, 0.95f, 1f, 0.06f);
         GenerarParticulasMuerte();
+
+        // Mayor probabilidad de corazon si el jugador tiene poca salud
+        float probCorazon = (jugador != null && jugador.Vida < jugador.VidaMaxima * 0.65f) ? 0.72f : 0.35f;
+        ObjetoRecolectable.SoltarBotin(transform.position, EsElite, probCorazon);
+
         Murio?.Invoke(this);
         Destroy(gameObject, TiempoDesaparicion);
     }
 
-    private void AplicarRetroceso(Vector3? origenGolpe)
+    private void AplicarRetroceso(Vector3? origenGolpe, float dist = 0.35f)
     {
         if (!origenGolpe.HasValue || cuerpo == null) return;
         Vector3 empuje = transform.position - origenGolpe.Value;
@@ -404,7 +496,6 @@ public abstract class Enemy : MonoBehaviour
         if (empuje.sqrMagnitude <= 0.001f) return;
 
         Vector3 dir = empuje.normalized;
-        float dist = 0.35f;
         if (cuerpo.SweepTest(dir, out RaycastHit hit, dist + 0.05f, QueryTriggerInteraction.Ignore))
         {
             dist = Mathf.Max(0f, hit.distance - 0.05f);
@@ -412,12 +503,12 @@ public abstract class Enemy : MonoBehaviour
         if (dist > 0.01f) cuerpo.MovePosition(cuerpo.position + dir * dist);
     }
 
-    private void ActivarFlashGolpe()
+    private void ActivarFlashGolpe(bool critico = false)
     {
         if (mallas == null || mallas.Length == 0) return;
         flashActivo = true;
         flashHasta = Time.time + 0.14f;
-        Color flash = new Color(1f, 0.35f, 0.25f, 1f);
+        Color flash = critico ? new Color(1f, 0.85f, 0.25f, 1f) : new Color(1f, 0.35f, 0.25f, 1f);
 
         for (int i = 0; i < mallas.Length; i++)
         {

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-// Maneja la lectura, escritura y listado de archivos JSON por perfil de jugador
+// Maneja la lectura, escritura, eliminacion y listado de archivos JSON por perfil de jugador
 public static class SaveManager
 {
     private static string Carpeta => Path.Combine(Application.persistentDataPath, "Partidas");
@@ -46,6 +46,13 @@ public static class SaveManager
             throw new InvalidDataException("Archivo de partida inválido");
         }
         return partida;
+    }
+
+    public static bool Eliminar(string nombre)
+    {
+        if (!Existe(nombre)) return false;
+        File.Delete(Ruta(nombre));
+        return true;
     }
 
     public static List<DatosPartida> Listar()

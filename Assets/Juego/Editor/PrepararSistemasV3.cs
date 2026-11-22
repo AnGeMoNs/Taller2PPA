@@ -179,29 +179,104 @@ public static class PrepararSistemasV3
 
         if (existente != null) AssetDatabase.DeleteAsset(path);
         AnimatorController ac = AnimatorController.CreateAnimatorControllerAtPath(path);
-        AnimatorStateMachine sm = ac.layers[0].stateMachine;
+        ac.AddParameter("Caminando", AnimatorControllerParameterType.Bool);
+        ac.AddParameter("Atacar", AnimatorControllerParameterType.Trigger);
+        ac.AddParameter("Morir", AnimatorControllerParameterType.Trigger);
+        if (anims[4] != null) ac.AddParameter("Golpe", AnimatorControllerParameterType.Trigger);
+        if (anims[5] != null) ac.AddParameter("Defendiendo", AnimatorControllerParameterType.Bool);
 
-        AnimatorState idleState = null;
+        AnimatorStateMachine sm = ac.layers[0].stateMachine;
+        AnimatorState[] estados = new AnimatorState[nombres.Length];
+
         for (int i = 0; i < nombres.Length; i++)
         {
             if (anims[i] == null) continue;
             AnimatorState state = sm.AddState(nombres[i], new Vector3(260 + (i >= 4 ? 260 : 0), (i % 4) * 85, 0));
             state.motion = anims[i];
-            if (i == 0)
-            {
-                sm.defaultState = state;
-                idleState = state;
-            }
+            estados[i] = state;
+            if (i == 0) sm.defaultState = state;
+        }
 
-            // Vuelve a Idle cuando termina la animacion de ataque o dano
-            if ((i == 2 || i == 4) && idleState != null)
+        AnimatorState idleState = estados[0];
+        AnimatorState walkState = estados[1];
+        AnimatorState attackState = estados[2];
+        AnimatorState deathState = estados[3];
+        AnimatorState hitState = estados[4];
+        AnimatorState defendState = estados[5];
+
+        if (idleState != null && walkState != null)
+        {
+            AnimatorStateTransition tWalk = idleState.AddTransition(walkState);
+            tWalk.hasExitTime = false;
+            tWalk.hasFixedDuration = true;
+            tWalk.duration = 0.10f;
+            tWalk.AddCondition(AnimatorConditionMode.If, 0, "Caminando");
+
+            AnimatorStateTransition tIdle = walkState.AddTransition(idleState);
+            tIdle.hasExitTime = false;
+            tIdle.hasFixedDuration = true;
+            tIdle.duration = 0.10f;
+            tIdle.AddCondition(AnimatorConditionMode.IfNot, 0, "Caminando");
+        }
+
+        if (defendState != null && idleState != null)
+        {
+            foreach (AnimatorState origen in new[] { idleState, walkState })
             {
-                AnimatorStateTransition back = state.AddTransition(idleState);
-                back.hasExitTime = true;
-                back.exitTime = 0.90f;
-                back.hasFixedDuration = true;
-                back.duration = 0.10f;
+                if (origen == null) continue;
+                AnimatorStateTransition toDef = origen.AddTransition(defendState);
+                toDef.hasExitTime = false;
+                toDef.hasFixedDuration = true;
+                toDef.duration = 0.08f;
+                toDef.AddCondition(AnimatorConditionMode.If, 0, "Defendiendo");
             }
+            AnimatorStateTransition defBack = defendState.AddTransition(idleState);
+            defBack.hasExitTime = false;
+            defBack.hasFixedDuration = true;
+            defBack.duration = 0.10f;
+            defBack.AddCondition(AnimatorConditionMode.IfNot, 0, "Defendiendo");
+        }
+
+        if (attackState != null && idleState != null)
+        {
+            AnimatorStateTransition anyAtk = sm.AddAnyStateTransition(attackState);
+            anyAtk.hasExitTime = false;
+            anyAtk.hasFixedDuration = true;
+            anyAtk.duration = 0.06f;
+            anyAtk.canTransitionToSelf = false;
+            anyAtk.AddCondition(AnimatorConditionMode.If, 0, "Atacar");
+
+            AnimatorStateTransition back = attackState.AddTransition(idleState);
+            back.hasExitTime = true;
+            back.exitTime = 0.90f;
+            back.hasFixedDuration = true;
+            back.duration = 0.10f;
+        }
+
+        if (hitState != null && idleState != null)
+        {
+            AnimatorStateTransition anyHit = sm.AddAnyStateTransition(hitState);
+            anyHit.hasExitTime = false;
+            anyHit.hasFixedDuration = true;
+            anyHit.duration = 0.05f;
+            anyHit.canTransitionToSelf = false;
+            anyHit.AddCondition(AnimatorConditionMode.If, 0, "Golpe");
+
+            AnimatorStateTransition back = hitState.AddTransition(idleState);
+            back.hasExitTime = true;
+            back.exitTime = 0.88f;
+            back.hasFixedDuration = true;
+            back.duration = 0.10f;
+        }
+
+        if (deathState != null)
+        {
+            AnimatorStateTransition anyDeath = sm.AddAnyStateTransition(deathState);
+            anyDeath.hasExitTime = false;
+            anyDeath.hasFixedDuration = true;
+            anyDeath.duration = 0.08f;
+            anyDeath.canTransitionToSelf = false;
+            anyDeath.AddCondition(AnimatorConditionMode.If, 0, "Morir");
         }
 
         EditorUtility.SetDirty(ac);
@@ -212,6 +287,11 @@ public static class PrepararSistemasV3
     private static bool EsControladorEnemigoValido(AnimatorController ac, string[] clips, string[] nombres)
     {
         if (ac == null || ac.layers == null || ac.layers.Length == 0) return false;
+        if (!ac.parameters.Any(p => p.name == "Caminando") || !ac.parameters.Any(p => p.name == "Atacar") || !ac.parameters.Any(p => p.name == "Morir"))
+        {
+            return false;
+        }
+
         ChildAnimatorState[] states = ac.layers[0].stateMachine.states;
 
         for (int i = 0; i < nombres.Length; i++)

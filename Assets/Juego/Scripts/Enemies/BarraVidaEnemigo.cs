@@ -16,6 +16,13 @@ public class BarraVidaEnemigo : MonoBehaviour
     private const float AnchoBase = 0.85f;
     private float alturaBarra = 2.0f;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void LimpiarEstaticos()
+    {
+        materialFondoCompartido = null;
+        materialRellenoCompartido = null;
+    }
+
     public void Inicializar(float alturaEnemigo)
     {
         alturaBarra = Mathf.Max(1.05f, alturaEnemigo + 0.32f);

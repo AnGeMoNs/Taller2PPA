@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Slime: se mueve de forma lenta y erratica en zig-zag hacia el jugador y dana al contacto
+// Slime: se mueve en saltos elasticos en zig-zag hacia el jugador y dana al contacto
 public class SlimeEnemy : Enemy
 {
     private float faseZigZag;
@@ -9,9 +9,12 @@ public class SlimeEnemy : Enemy
     private float pausaHasta;
     private float ataqueVisualHasta;
     private Vector3 direccionErratica;
+    private Transform visualHijo;
+    private Vector3 escalaVisualBase;
 
     protected override Color ColorParticulasMuerte => new Color(0.28f, 0.88f, 0.42f);
     protected override float TiempoDesaparicion => 1.45f;
+    public override string NombreVisible => EsElite && !string.IsNullOrEmpty(NombreElite) ? NombreElite : "Slime de Mazmorra";
 
     protected override void Awake()
     {
@@ -19,6 +22,32 @@ public class SlimeEnemy : Enemy
         faseZigZag = transform.position.x * 1.7f + transform.position.z * 2.3f;
         frecuenciaZigZag = 2.6f;
         ElegirDireccionErratica();
+
+        if (transform.childCount > 0)
+        {
+            for (int i = 0; i < transform.childCount; i++)
+            {
+                Transform hijo = transform.GetChild(i);
+                if (hijo.name != "BarraVida_3D" && hijo.name != "Aura_Elite")
+                {
+                    visualHijo = hijo;
+                    escalaVisualBase = hijo.localScale;
+                    break;
+                }
+            }
+        }
+    }
+
+    protected override void Update()
+    {
+        base.Update();
+        if (Muerto || visualHijo == null || !EnJuego) return;
+
+        // Efecto elastico sutil sincronizado con su ritmo de avance
+        float pulso = Mathf.Sin(Time.time * 6.2f + faseZigZag);
+        float factorY = 1f + pulso * 0.08f;
+        float factorXZ = 1f - pulso * 0.05f;
+        visualHijo.localScale = new Vector3(escalaVisualBase.x * factorXZ, escalaVisualBase.y * factorY, escalaVisualBase.z * factorXZ);
     }
 
     protected override float FactorVelocidadActual()
@@ -28,7 +57,7 @@ public class SlimeEnemy : Enemy
 
     public override bool IntentarPerseguir()
     {
-        if (!VeJugador()) return false;
+        if (EstaAturdido || !VeJugador()) return false;
 
         Vector3 haciaJugador = jugador.transform.position - transform.position;
         haciaJugador.y = 0f;
@@ -42,7 +71,7 @@ public class SlimeEnemy : Enemy
 
     public override bool Patrullar()
     {
-        if (!EnJuego) return false;
+        if (!EnJuego || EstaAturdido) return false;
 
         if (Time.time < pausaHasta)
         {

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Esqueleto con espada: patrulla la sala, alerta al ver al jugador, lo persigue y ataca cuerpo a cuerpo
+// Esqueleto con espada: patrulla, telegrafia su golpe para permitir parry/esquiva y persigue al jugador
 public class SkeletonEnemy : Enemy
 {
     private float momentoImpacto = -1f;
@@ -11,10 +11,17 @@ public class SkeletonEnemy : Enemy
 
     protected override Color ColorParticulasMuerte => new Color(0.92f, 0.88f, 0.76f);
     protected override float TiempoDesaparicion => 1.55f;
+    public override string NombreVisible => EsElite && !string.IsNullOrEmpty(NombreElite) ? NombreElite : "Esqueleto Guardián";
+    public override string EstadoVisual => EstaAturdido ? "ATURDIDO" : (momentoImpacto >= 0f ? "¡ATACANDO!" : "");
+
+    protected override void AlSerAturdido()
+    {
+        momentoImpacto = -1f;
+    }
 
     public override bool IntentarAtacar()
     {
-        if (!EnJuego) return false;
+        if (!EnJuego || EstaAturdido) return false;
 
         if (momentoImpacto >= 0f)
         {
@@ -22,9 +29,9 @@ public class SkeletonEnemy : Enemy
             MirarJugador();
             if (Time.time < momentoImpacto) return true;
             momentoImpacto = -1f;
-            if (Distancia <= rangoAtaque + 0.28f && VeJugador())
+            if (Distancia <= rangoAtaque + 0.32f && VeJugador())
             {
-                jugador.RecibirDano(dano);
+                jugador.RecibirDano(dano, this, transform.position);
             }
             return true;
         }
@@ -37,10 +44,11 @@ public class SkeletonEnemy : Enemy
 
         if (Time.time >= siguienteAtaque)
         {
-            siguienteAtaque = Time.time + 1.55f;
-            momentoImpacto = Time.time + 0.38f;
+            siguienteAtaque = Time.time + (EsElite ? 1.35f : 1.55f);
+            momentoImpacto = Time.time + 0.42f;
             ActivarAtaque();
-            AudioManager.Reproducir("Skeleton_Attack", transform.position);
+            MostrarTelegrafoAtaque();
+            AudioManager.Reproducir("Skeleton_Attack", transform.position, 0.92f, EsElite ? 0.88f : 1f, 0.06f);
         }
         return true;
     }
@@ -49,7 +57,7 @@ public class SkeletonEnemy : Enemy
     {
         if (!observado)
         {
-            AudioManager.Reproducir("Skeleton_Alert", transform.position);
+            AudioManager.Reproducir("Skeleton_Alert", transform.position, 0.85f, 1f, 0.05f);
         }
         observado = true;
         recordarHasta = Time.time + 2.5f;
@@ -58,6 +66,8 @@ public class SkeletonEnemy : Enemy
 
     public override bool IntentarPerseguir()
     {
+        if (EstaAturdido) return false;
+
         if (VeJugador())
         {
             RegistrarAvistamiento();
@@ -77,7 +87,7 @@ public class SkeletonEnemy : Enemy
 
     public override bool Patrullar()
     {
-        if (!EnJuego) return false;
+        if (!EnJuego || EstaAturdido) return false;
         observado = false;
 
         if (Time.time < pausaPatrullaHasta)
