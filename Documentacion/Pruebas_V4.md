@@ -1,25 +1,23 @@
-# Pruebas manuales pendientes (no ejecutadas en este entorno)
+# Lista de pruebas - La Mazmorra de Link
 
-| Caso | Acción | Resultado esperado |
+| Caso | Accion | Resultado esperado |
 |---|---|---|
-| 01 | Generar escena y ejecutar Comprobar referencias V4 | Se guardan escena y controladores; sin referencias vacías |
-| 02 | Nueva partida `PruebaA` | Aparece jugador con 100 de vida y 0/4 objetos |
-| 03 | Intentar entrar en cámara final sin recompensas | La puerta impide pasar |
-| 04 | Derrotar esqueleto y slime | Recompensa roja aparece solo cuando ambos están muertos |
-| 05 | E junto a llave roja | HUD 1/4; llave desaparece y se autoguarda |
-| 06 | Empujar cajas a dos placas diferentes | Ambas verdes; aparece llave verde |
-| 07 | Mover cajas a posiciones arbitrarias, F5, volver al menú y cargar | Posiciones restauradas; RESET devuelve cajas si no se resolvió |
-| 08 | Palancas 1, 2 y luego 2, 1, 3 | Primer intento reinicia; segundo resuelve y concede llave amarilla |
-| 09 | F5 después de una palanca correcta, salir y cargar | Secuencia parcial restaurada |
-| 10 | Cruzar bandas rojas / verdes | Daño solo durante rojo, con cooldown |
-| 11 | Activar control 2 primero y luego 1, 2 | Se exige orden; se desactivan bandas; aparece gema |
-| 12 | Recoger las cuatro recompensas | HUD 4/4 y puerta final abierta |
-| 13 | Activar dos pedestales, guardar y cargar | Dos ranuras verdes, no se vuelve a consumir recompensa |
-| 14 | Activar cuatro pedestales y recoger bate | Victoria, sonido y créditos; cargar devuelve pantalla victoria |
-| 15 | Crear `PruebaB` y volver a `PruebaA` | Ambos JSON conservan progresos independientes |
-| 16 | Crear nombre ya existente | No se sobrescribe |
-| 17 | Vida llega a cero, clic en Reintentar | Carga último guardado sin duplicar recompensas |
-| 18 | Crear/asignar Behavior Graph y activar usarUnityBehavior | Revisar grafo en ejecución; gestiones de ataque/persecución/patrulla correctas |
-| 19 | Build y Play en Windows | No hay errores de compilación; revisar cámaras, modelos, texturas y audio |
-
-Si el editor no muestra el menú Taller 2, revisar Console y resolver primero errores de compilación/importación. No marcar pruebas como aprobadas hasta ejecutarlas.
+| 01 | Abrir `MazmorraV4.unity` y ejecutar `Taller 2 > 5. Comprobar referencias` | Sin errores ni referencias vacias |
+| 02 | Crear nueva partida `PruebaA` | Link inicia en el vestibulo con 100/100 HP, 1 pocion y 0/4 sellos |
+| 03 | Intentar cruzar la reja norte sin los 4 sellos | La puerta permanece cerrada y bloquea el paso |
+| 04 | Probar movimiento, esquiva (`Espacio`), combo x3 (`Clic Izq.`), giro (`R`), escudo (`Clic Der.`) y `Tab` | Animaciones, estamina, Z-Targeting y sonidos responden bien |
+| 05 | Sala Oeste: derrotar al esqueleto y al slime | Se encienden los orbes y aparece la llave roja |
+| 06 | Presionar `E` en la llave roja | HUD muestra 1/4, desaparece la llave y se autoguarda |
+| 07 | Sala Este: empujar las 2 cajas sobre ambas placas | Placas en verde, aparece llave verde; `RESET` devuelve cajas si aun no se resuelve |
+| 08 | Mover cajas, guardar (`F5`), volver al menu y cargar `PruebaA` | Posiciones de cajas y estado restaurados correctamente |
+| 09 | Sala Sur: probar orden incorrecto y luego `II - I - III` | Primer intento reinicia con destello rojo; segundo entrega llave amarilla |
+| 10 | Sala Norte: cruzar bandas de puas en verde y activar Control 1 y luego Control 2 | En rojo aplican dano (esquivables); al activar ambos controles se apagan y aparece la gema |
+| 11 | Romper barriles/anforas, abrir cofres (`E`) y visitar el Santuario de Hadas | Sueltan botin, cofres entregan rupias/pociones y se guardan como abiertos |
+| 12 | Reunir los 4 sellos | HUD muestra 4/4 y la reja norte se eleva con sonido |
+| 13 | Camara del Altar: colocar los 4 sellos en los pedestales | Conductos dorados se iluminan y aparece la Reliquia Sagrada en el centro |
+| 14 | Reclamar la Reliquia Sagrada (`E`) | Vida sube a 300/300, dano x2, espada con aura dorada y aparece la oleada final de 5 enemigos |
+| 15 | Derrotar los 5 enemigos de la oleada final | Suena fanfarria de victoria, aparece pantalla de victoria con estadisticas, rango y creditos |
+| 16 | Crear segundo perfil `PruebaB` y alternar con `PruebaA` | Cada perfil conserva su propio archivo JSON sin mezclar progreso |
+| 17 | Intentar crear un perfil con nombre ya existente | Muestra aviso y no sobrescribe la partida existente |
+| 18 | Dejar que la vida llegue a 0 y hacer clic en pantalla | Suena muerte, aparece `¡Fin del juego!` y reinicia desde el ultimo guardado |
+| 19 | Probar menu de Opciones (volumen musica/efectos, sensibilidad y minimapa `M`) | Los cambios se aplican de inmediato y se mantienen al reiniciar |

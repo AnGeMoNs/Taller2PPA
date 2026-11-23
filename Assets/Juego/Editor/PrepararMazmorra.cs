@@ -181,7 +181,7 @@ public static partial class PrepararMazmorra
         if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
         PrepararMateriales();
-        PrepararAnimacionesSahur.ObtenerControlador(forzarReconstruccion: true);
+        PrepararAnimacionesLink.ObtenerControlador(forzarReconstruccion: true);
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
         RenderSettings.ambientMode = AmbientMode.Flat;
@@ -341,7 +341,7 @@ public static partial class PrepararMazmorra
         player.transform.SetParent(parent);
         player.transform.position = new Vector3(0, 0.03f, 0);
 
-        GameObject model = ColocarActor("Modelo", PrepararAnimacionesSahur.ModeloLink, player.transform.position, 1.85f, player.transform);
+        GameObject model = ColocarActor("Modelo", PrepararAnimacionesLink.ModeloLink, player.transform.position, 1.85f, player.transform);
 
         CapsuleCollider col = player.AddComponent<CapsuleCollider>();
         col.height = 1.85f;
@@ -362,7 +362,7 @@ public static partial class PrepararMazmorra
         so.FindProperty("animator").objectReferenceValue = animator;
         so.ApplyModifiedPropertiesWithoutUndo();
 
-        PrepararAnimacionesSahur.Asignar(mv, PrepararAnimacionesSahur.ObtenerControlador());
+        PrepararAnimacionesLink.Asignar(mv, PrepararAnimacionesLink.ObtenerControlador());
         PrefabUtility.SaveAsPrefabAssetAndConnect(player, Juego + "Prefabs/Player/Link.prefab", InteractionMode.AutomatedAction);
         return player;
     }

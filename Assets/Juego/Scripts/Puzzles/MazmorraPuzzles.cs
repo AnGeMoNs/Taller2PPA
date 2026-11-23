@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 // Coordina los cuatro puzzles de sala, el altar final, la reliquia y las interacciones
 public class MazmorraPuzzles : MonoBehaviour
@@ -39,7 +38,6 @@ public class MazmorraPuzzles : MonoBehaviour
     [SerializeField] private Renderer[] conductosAltar;
     [SerializeField] private GameObject hazReliquia;
     [SerializeField] private GameObject puertaFinal;
-    [FormerlySerializedAs("bate")]
     [SerializeField] private GameObject reliquia;
     [SerializeField] private InteraccionMazmorra[] interacciones;
 

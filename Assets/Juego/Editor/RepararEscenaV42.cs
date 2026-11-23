@@ -77,7 +77,7 @@ public static class RepararEscenaV42
 
         Undo.RegisterFullObjectHierarchyUndo(jugador.gameObject, "Alinear personaje Link");
         PrepararMazmorra.PrepararMaterialesLink();
-        PrepararAnimacionesSahur.Asignar(jugador, PrepararAnimacionesSahur.ObtenerControlador());
+        PrepararAnimacionesLink.Asignar(jugador, PrepararAnimacionesLink.ObtenerControlador());
 
         Transform visual = jugador.transform.Find("Modelo");
         if (visual != null) AjustarVisual(visual, jugador.transform, 1.85f);

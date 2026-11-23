@@ -1,11 +1,13 @@
-# Relación con los materiales de PPA
+# Relacion con los contenidos de PPA
 
-- Ayudantía 01: Unity Hub, editor, scripts C# y preparación del entorno.
-- Ayudantía 02: desarrollo incremental (diapositiva 5), convenciones de commits (diapositivas 12–13), Kanban (16–17).
-- MovimientoSimple.cs y MovimientoSimple-actualizado.cs: estructura Start/Update/FixedUpdate, campos serializados, captura de teclado y movimiento por Rigidbody2D. La base adapta a Rigidbody 3D y plano X/Z; no reutiliza los scripts 2D como componentes.
-- Clase 9: Assets, Animation/Animator, parámetros y transiciones (diapositivas 3, 15 y 17). Se mantiene pendiente configurar clips compatibles con R15.
-- Clase 10: Rigidbody, Collider, programación de colisiones y movimiento. El ejemplo de placa demuestra entradas y salidas de un Trigger; debe ampliarse por el equipo.
-- Clase 13: Quality Settings, Profiler y colliders simples para geometría 3D (diapositivas 6, 7 y 11). No se han medido FPS ni rendimiento.
-- Clase 14: PlayerPrefs, JSON y Scriptable Objects. Se elige JSON para un perfil por archivo; DatosPartida es solamente un modelo inicial, no un sistema terminado.
-- Clase 5: modelos de dominio y diagramas de clases, asociaciones y multiplicidad (diapositiva 17).
-- Taller 2 Enunciado y Rubrica: el juego equivale a 65 puntos e informe a 35; el enunciado autoriza apoyo con IA pero no el desarrollo completo por IA. La base permite trabajar los requisitos de forma incremental, no garantiza puntaje.
+- **Ayudantia 01**: configuracion del proyecto en Unity 6, estructura de carpetas y scripts C#.
+- **Ayudantia 02**: desarrollo incremental, ramas en GitHub y convencion de commits (`feat`, `fix`, `refactor`, `docs`).
+- **MovimientoSimple.cs**: separacion entre `Start` (referencias), `Update` (lectura de entradas y Animator) y `FixedUpdate` (fisicas con `Rigidbody`), adaptada al entorno 3D en `Movimiento3D.cs`.
+- **Clase 5 (UML)**: correspondencia entre el modelo de dominio, el diagrama de clases y los scripts reales (encapsulamiento, asociaciones y herencia de `Enemy`).
+- **Clase 9 (Animaciones)**: configuracion de rig Humanoid para Link (`Link.controller`) y controladores con parametros para los tres enemigos (`Esqueleto.controller`, `Slime.controller`, `Tortuga.controller`).
+- **Clase 10 (Fisicas y colisiones)**: `Rigidbody`, `CapsuleCollider`, `BoxCollider`, triggers de trampas y consultas fisicas `NonAlloc` (`OverlapSphereNonAlloc`, `RaycastNonAlloc`, `SphereCastNonAlloc`, `SweepTest`).
+- **Clase 11 (Interfaz grafica)**: actualizacion del HUD (`HUDManager` y `MinimapaMazmorra`) mediante eventos de C# en vez de recalcular textos de vida cada frame en `Update`.
+- **Clase 12 (Sonidos y musica)**: organizacion con regiones (`#region CLASS_VARIABLES`, `#region UNITY_METHODS`, `#region CLASS_METHODS`), uso de `AudioSource.Play()` para musica en loop y `PlayOneShot()` para efectos de sonido en `AudioManager`.
+- **Clase 13 (Rendimiento)**: uso de colliders simples en muros/pisos/pilares, `MaterialPropertyBlock` para cambios de color y buffers reutilizados para evitar asignaciones de memoria.
+- **Clase 14 (Guardado de datos)**: clase `[Serializable] DatosPartida`, serializacion con `JsonUtility.ToJson` / `FromJson` y escritura con `StreamWriter` en `SaveManager` (un archivo JSON por perfil en `Application.persistentDataPath/Partidas`).
+- **Clase 15 (Patrones de diseno)**: Managers (`GameManager`, `HUDManager`, `AudioManager`, `SaveManager`), Singleton en `GameManager` y `AudioManager`, Observer mediante eventos (`VidaCambiada`, `Cambio`, `Murio`, `ComboCambiado`), Object Pool de fuentes 3D en `AudioManager` e interfaz `IInteractuable`.

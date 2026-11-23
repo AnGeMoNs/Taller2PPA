@@ -7,7 +7,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 // Configura el modelo Humanoid de Link, su Animator Controller y su espada y escudo
-public static class PrepararAnimacionesSahur
+public static class PrepararAnimacionesLink
 {
     public const string ModeloLink = "Assets/CharacterAssets/LinkAnimation/LinkMaximo.fbx";
     private const string FbxDir = "Assets/CharacterAssets/LinkAnimation/";
@@ -388,11 +388,7 @@ public static class PrepararAnimacionesSahur
 
         GameObject nuevoModelo = PrepararMazmorra.ColocarActor("Modelo", ModeloLink, movimiento.transform.position, 1.85f, movimiento.transform);
         nuevoModelo.transform.localRotation = Quaternion.identity;
-
-        if (movimiento.gameObject.name == "Player_Sahur")
-        {
-            movimiento.gameObject.name = "Player_Link";
-        }
+        movimiento.gameObject.name = "Player_Link";
     }
 
     public static void Asignar(Movimiento3D movimiento, AnimatorController controller)
