@@ -6,9 +6,14 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-// Construye y actualiza menu principal, ajustes, HUD completo, minimapa, Z-target, combo y pantallas de estado
+// Manager de interfaz: menu principal, opciones, HUD del juego, pausa, derrota y victoria
 public class HUDManager : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
+    [Header("Creditos")]
+    [SerializeField] private string nombresDesarrolladores = "Integrante 1 y Integrante 2";
+
     private const int GuardadosPorPagina = 6;
 
     private GameManager game;
@@ -72,6 +77,52 @@ public class HUDManager : MonoBehaviour
     private readonly Color colorMetal = new Color(0.10f, 0.13f, 0.14f, 0.94f);
     private readonly Color colorDorado = new Color(0.86f, 0.70f, 0.36f);
 
+    #endregion
+
+    #region UNITY_METHODS
+
+    private void Update()
+    {
+        if (campoNombreActivo != null && campoNombreActivo.gameObject.activeInHierarchy && Input.GetKeyDown(KeyCode.Return))
+        {
+            game.Nueva(campoNombreActivo.text);
+        }
+
+        if (game != null && game.EnJuego)
+        {
+            ActualizarIndicadoresDinamicos();
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (vida != null)
+        {
+            vida.VidaCambiada -= ActualizarVida;
+            vida.DanoRecibido -= MostrarFlashDano;
+        }
+        if (progreso != null)
+        {
+            progreso.Cambio -= ActualizarProgreso;
+        }
+        if (movimiento != null)
+        {
+            movimiento.EstaminaCambiada -= ActualizarEstamina;
+        }
+        if (combate != null)
+        {
+            combate.ComboCambiado -= ActualizarCombo;
+        }
+        if (inventario != null)
+        {
+            inventario.InventarioCambiado -= ActualizarInventario;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
     public void Construir(
         GameManager gm,
         VidaJugador vidaJugador,
@@ -95,7 +146,15 @@ public class HUDManager : MonoBehaviour
 
         fuenteLegacy = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        try { fuenteTmp = TMP_Settings.defaultFontAsset; } catch { fuenteTmp = null; }
+        try
+        {
+            fuenteTmp = TMP_Settings.defaultFontAsset;
+        }
+        catch
+        {
+            fuenteTmp = null;
+        }
+
         if (fuenteTmp == null)
         {
             fuenteTmp = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
@@ -135,6 +194,7 @@ public class HUDManager : MonoBehaviour
         vida.VidaCambiada += ActualizarVida;
         vida.DanoRecibido += MostrarFlashDano;
         progreso.Cambio += ActualizarProgreso;
+
         if (movimiento != null) movimiento.EstaminaCambiada += ActualizarEstamina;
         if (combate != null) combate.ComboCambiado += ActualizarCombo;
         if (inventario != null) inventario.InventarioCambiado += ActualizarInventario;
@@ -145,32 +205,14 @@ public class HUDManager : MonoBehaviour
         ActualizarInventario();
     }
 
-    private void Update()
-    {
-        if (campoNombreActivo != null && campoNombreActivo.gameObject.activeInHierarchy && Input.GetKeyDown(KeyCode.Return))
-        {
-            game.Nueva(campoNombreActivo.text);
-        }
-
-        if (game != null && game.EnJuego)
-        {
-            ActualizarIndicadoresDinamicos();
-        }
-    }
-
     private void ActualizarIndicadoresDinamicos()
     {
-        // 1. Barra de tiempo del combo
-        if (combate != null && panelCombo != null && combate.RachaCombo >= 2)
+        if (combate != null && panelCombo != null && combate.RachaCombo >= 2 && barraComboTiempo != null)
         {
-            if (barraComboTiempo != null)
-            {
-                barraComboTiempo.rectTransform.anchorMax = new Vector2(combate.ProgresoTiempoCombo, 1f);
-                barraComboTiempo.rectTransform.offsetMax = Vector2.zero;
-            }
+            barraComboTiempo.rectTransform.anchorMax = new Vector2(combate.ProgresoTiempoCombo, 1f);
+            barraComboTiempo.rectTransform.offsetMax = Vector2.zero;
         }
 
-        // 2. Indicador de estado especial de espada (contraataque parry / carga giro / reliquia)
         if (textoPoder != null)
         {
             if (combate != null && combate.ContraataqueListo)
@@ -181,7 +223,7 @@ public class HUDManager : MonoBehaviour
             else if (movimiento != null && movimiento.CargaGiroProgreso > 0.2f)
             {
                 int pct = Mathf.RoundToInt(movimiento.CargaGiroProgreso * 100f);
-                textoPoder.text = $"◎ CARGANDO ATAQUE GIRATORIO... {pct}%";
+                textoPoder.text = "◎ CARGANDO ATAQUE GIRATORIO... " + pct + "%";
                 textoPoder.color = colorCian;
             }
             else if (reliquiaPotenciada)
@@ -195,18 +237,18 @@ public class HUDManager : MonoBehaviour
             }
         }
 
-        // 3. Barra superior de objetivo fijado (Z-Targeting) o progreso de Oleada Final
-        if (panelEnemigoObjetivo == null) return;
+        if (panelEnemigoObjetivo == null)
+            return;
 
         Enemy objetivo = fijado != null ? fijado.ObjetivoActual : null;
         if (objetivo != null)
         {
             panelEnemigoObjetivo.SetActive(true);
             float prop = Mathf.Clamp01((float)objetivo.VidaActual / Mathf.Max(1, objetivo.VidaMaxima));
-            textoEnemigoNombre.text = objetivo.EsElite ? $"★ {objetivo.NombreVisible.ToUpperInvariant()}" : objetivo.NombreVisible.ToUpperInvariant();
+            textoEnemigoNombre.text = objetivo.EsElite ? "★ " + objetivo.NombreVisible.ToUpperInvariant() : objetivo.NombreVisible.ToUpperInvariant();
             textoEnemigoEstado.text = string.IsNullOrEmpty(objetivo.EstadoVisual)
-                ? $"{objetivo.VidaActual} / {objetivo.VidaMaxima}"
-                : $"{objetivo.EstadoVisual}  ·  {objetivo.VidaActual}/{objetivo.VidaMaxima}";
+                ? objetivo.VidaActual + " / " + objetivo.VidaMaxima
+                : objetivo.EstadoVisual + "  ·  " + objetivo.VidaActual + "/" + objetivo.VidaMaxima;
             barraEnemigoVida.color = objetivo.EstaAturdido ? colorDorado : colorRojo;
             barraEnemigoVida.rectTransform.anchorMax = new Vector2(prop, 1f);
             barraEnemigoVida.rectTransform.offsetMax = Vector2.zero;
@@ -217,7 +259,7 @@ public class HUDManager : MonoBehaviour
             OleadaFinal oleada = puzzles.Oleada;
             float prop = Mathf.Clamp01((float)oleada.VidaTotalActual / Mathf.Max(1, oleada.VidaTotalMaxima));
             textoEnemigoNombre.text = "OLEADA FINAL · GUARDIANES DE LA RELIQUIA";
-            textoEnemigoEstado.text = $"Enemigos restantes: {oleada.Restantes} / {oleada.TotalOleada}";
+            textoEnemigoEstado.text = "Enemigos restantes: " + oleada.Restantes + " / " + oleada.TotalOleada;
             barraEnemigoVida.color = new Color(0.86f, 0.24f, 0.72f);
             barraEnemigoVida.rectTransform.anchorMax = new Vector2(prop, 1f);
             barraEnemigoVida.rectTransform.offsetMax = Vector2.zero;
@@ -308,7 +350,7 @@ public class HUDManager : MonoBehaviour
         TMP_Text titulo = CrearTexto(panelIzquierdo, "LA MAZMORRA DE LINK", 38, colorMarfil, 52, 42, 540, 62);
         titulo.fontStyle = FontStyles.Bold;
         CrearTexto(panelIzquierdo, "L A   R E L I Q U I A   S A G R A D A", 18, colorDorado, 54, 108, 500, 34);
-        CrearTexto(panelIzquierdo, "EDICIÓN MEJORADA · COMBATE, EXPLORACIÓN Y PUZZLES 3D", 14, new Color(0.60f, 0.72f, 0.68f), 54, 148, 520, 26);
+        CrearTexto(panelIzquierdo, "AVENTURA Y PUZZLES EN MAZMORRA 3D", 14, new Color(0.60f, 0.72f, 0.68f), 54, 148, 520, 26);
 
         CrearBoton(panelIzquierdo, "NUEVA PARTIDA", 54, 210, 410, 48, MostrarNuevaPartida);
         CrearBoton(panelIzquierdo, "CONTINUAR PARTIDA", 54, 268, 410, 48, () => MostrarPartidasGuardadas(0));
@@ -318,7 +360,7 @@ public class HUDManager : MonoBehaviour
         CrearBoton(panelIzquierdo, "SALIR", 54, 500, 410, 48, game.Salir);
 
         mensajeMenu = CrearTexto(panelIzquierdo, "", 17, colorDorado, 54, 560, 500, 56);
-        CrearEtiqueta(raiz, "REÚNE LOS CUATRO SELLOS, DOMINA EL PARRY Y RECLAMA LA RELIQUIA.", 16, colorDorado, new Vector2(0.52f, 0.08f), new Vector2(0.97f, 0.17f), Vector2.zero, Vector2.zero, TextAlignmentOptions.Right);
+        CrearEtiqueta(raiz, "REÚNE LOS CUATRO SELLOS Y RECLAMA LA RELIQUIA SAGRADA.", 16, colorDorado, new Vector2(0.52f, 0.08f), new Vector2(0.97f, 0.17f), Vector2.zero, Vector2.zero, TextAlignmentOptions.Right);
     }
 
     private RectTransform AbrirSubmenu(string titulo)
@@ -366,7 +408,7 @@ public class HUDManager : MonoBehaviour
         campoNombreActivo = entradaTexto;
 
         CrearBoton(panel, "CREAR", 30, 233, 220, 50, () => game.Nueva(entradaTexto.text));
-        CrearTexto(panel, "Cada perfil guarda su progreso, rupias, pociones, cofres y estadísticas en un archivo JSON independiente.", 17, colorDorado, 30, 302, 510, 80);
+        CrearTexto(panel, "Cada perfil guarda su progreso, rupias, pociones y cofres en un archivo JSON independiente.", 17, colorDorado, 30, 302, 510, 80);
     }
 
     private void MostrarPartidasGuardadas(int pagina)
@@ -404,10 +446,11 @@ public class HUDManager : MonoBehaviour
 
             CrearBoton(
                 panel,
-                $"{datos.nombre}  ·  HP {datos.vida}  ·  Sellos {sellos}/4  ·  ◆{datos.rupias}  ·  {tiempo}",
+                datos.nombre + "  ·  HP " + datos.vida + "  ·  Sellos " + sellos + "/4  ·  ◆" + datos.rupias + "  ·  " + tiempo,
                 30, yFila, 466, 44,
                 () => game.Cargar(datos.nombre),
-                17f);
+                17f
+            );
 
             string nombreBorrar = datos.nombre;
             CrearBoton(
@@ -422,7 +465,8 @@ public class HUDManager : MonoBehaviour
                     }
                 },
                 18f,
-                new Color(0.45f, 0.12f, 0.12f, 0.95f));
+                new Color(0.45f, 0.12f, 0.12f, 0.95f)
+            );
         }
 
         if (pagina > 0)
@@ -446,7 +490,8 @@ public class HUDManager : MonoBehaviour
             30,
             96,
             530,
-            400);
+            400
+        );
     }
 
     private void MostrarOpciones(RectTransform panel)
@@ -458,11 +503,11 @@ public class HUDManager : MonoBehaviour
 
         void Refrescar()
         {
-            lblMusica.text = $"Volumen Música:  {Mathf.RoundToInt(AudioManager.VolumenMusica * 100f)}%";
-            lblSfx.text = $"Volumen Efectos:  {Mathf.RoundToInt(AudioManager.VolumenEfectos * 100f)}%";
-            lblSens.text = $"Sensibilidad Ratón:  {CamaraTerceraPersona.Sensibilidad:0.0}";
+            lblMusica.text = "Volumen Música:  " + Mathf.RoundToInt(AudioManager.VolumenMusica * 100f) + "%";
+            lblSfx.text = "Volumen Efectos:  " + Mathf.RoundToInt(AudioManager.VolumenEfectos * 100f) + "%";
+            lblSens.text = "Sensibilidad Ratón:  " + CamaraTerceraPersona.Sensibilidad.ToString("0.0");
             bool mapaActivo = minimapa != null ? minimapa.Visible : MinimapaMazmorra.PreferenciaVisible;
-            lblMapa.text = $"Minimapa en HUD:  {(mapaActivo ? "ACTIVADO" : "OCULTO")}";
+            lblMapa.text = "Minimapa en HUD:  " + (mapaActivo ? "ACTIVADO" : "OCULTO");
         }
 
         CrearBoton(panel, "-", 360, 106, 56, 40, () => { AudioManager.ConfigurarVolumenMusica(AudioManager.VolumenMusica - 0.1f); Refrescar(); }, 22f);
@@ -491,13 +536,14 @@ public class HUDManager : MonoBehaviour
         RectTransform panel = AbrirSubmenu("CRÉDITOS");
         CrearTexto(
             panel,
-            "La Mazmorra de Link: La Reliquia Sagrada\nProyecto de Programación Avanzada\nUniversidad Católica del Norte\n\nPersonaje y animaciones: Link (Mixamo Humanoid)\nEscenario y enemigos: paquete del taller\nSistemas: Combate con Parry, Z-Targeting, Minimapa,\nCofres, Santuario, Botín y Guardado JSON por perfil.",
+            "La Mazmorra de Link: La Reliquia Sagrada\nTaller 2 · Proyecto de Programación Avanzada\nUniversidad Católica del Norte\n\nDesarrolladores:\n" + nombresDesarrolladores + "\n\nPersonaje y animaciones: Link (Mixamo Humanoid)\nEscenario y enemigos: Paquete de assets del taller",
             19,
             colorMarfil,
             30,
             105,
             505,
-            350);
+            360
+        );
     }
 
     private void CrearHudJuego()
@@ -505,12 +551,11 @@ public class HUDManager : MonoBehaviour
         RectTransform raiz = CrearRect(raizCanvas, "HUD", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         panelHud = raiz.gameObject;
 
-        // Destello de pantalla al recibir dano o bloquear
         RectTransform rectFlash = CrearPanelCompleto(raiz, "FlashDano", new Color(0.8f, 0.1f, 0.1f, 0f));
         flashDano = rectFlash.GetComponent<Image>();
         flashDano.raycastTarget = false;
 
-        // Panel de vida y estamina abajo a la izquierda
+        // Estado vital y estamina
         RectTransform panelVida = CrearPanel(raiz, "EstadoVital", new Vector2(0, 0), new Vector2(0, 0), new Vector2(30, 24), new Vector2(394, 168), colorMetal);
         CrearCaja(panelVida, "BordeVida", 0, 0, 4, 144, colorDorado);
         CrearTexto(panelVida, "ESTADO VITAL", 14, colorDorado, 18, 9, 300, 20);
@@ -525,24 +570,24 @@ public class HUDManager : MonoBehaviour
 
         textoPoder = CrearTexto(panelVida, "", 13, colorDorado, 18, 117, 336, 20);
 
-        // Panel compacto de pociones y rupias junto al estado vital
+        // Pociones y rupias
         RectTransform panelBolsa = CrearPanel(raiz, "BolsaRapida", new Vector2(0, 0), new Vector2(0, 0), new Vector2(404, 24), new Vector2(582, 106), colorMetal);
         CrearCaja(panelBolsa, "BordeBolsa", 0, 0, 4, 82, colorDorado);
         textoPociones = CrearTexto(panelBolsa, "[Q] POCIÓN  x1", 17, new Color(1f, 0.45f, 0.62f), 14, 14, 160, 26);
         textoRupias = CrearTexto(panelBolsa, "◆ 0 RUPIAS", 17, colorVerde, 14, 46, 160, 26);
 
-        // Indicador de sala arriba a la izquierda
+        // Sala actual
         RectTransform panelSala = CrearPanel(raiz, "ZonaActual", new Vector2(0, 1), new Vector2(0, 1), new Vector2(30, -76), new Vector2(326, -24), colorMetal);
         CrearCaja(panelSala, "BordeSala", 0, 0, 4, 52, colorDorado);
         textoSala = CrearTexto(panelSala, "VESTÍBULO CENTRAL", 16, colorDorado, 16, 15, 278, 26);
 
-        // Contador de sellos arriba a la derecha
+        // Progreso de sellos
         RectTransform panelObjetos = CrearPanel(raiz, "Objetos", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-346, -110), new Vector2(-30, -24), colorMetal);
         CrearCaja(panelObjetos, "BordeObj", 0, 0, 4, 86, colorDorado);
         CrearTexto(panelObjetos, "OBJETIVO · LA RELIQUIA SAGRADA", 14, colorDorado, 16, 10, 294, 22);
         textoSellos = CrearTexto(panelObjetos, "", 21, colorMarfil, 16, 39, 286, 34);
 
-        // Panel de enemigo fijado (Z-Targeting) o barra de oleada final arriba al centro
+        // Barra superior de enemigo fijado o de oleada final
         RectTransform panelObj = CrearPanel(raiz, "PanelEnemigo", new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(-215, -138), new Vector2(215, -80), colorMetal);
         panelEnemigoObjetivo = panelObj.gameObject;
         CrearCaja(panelObj, "BordeObjEn", 0, 0, 430, 3, colorDorado);
@@ -552,7 +597,7 @@ public class HUDManager : MonoBehaviour
         barraEnemigoVida = CrearPanelCompleto(fondoEnVida, "BarraEnVida", colorRojo).GetComponent<Image>();
         panelEnemigoObjetivo.SetActive(false);
 
-        // Panel de racha de combo al costado derecho
+        // Racha de combo
         RectTransform pCombo = CrearPanel(raiz, "PanelCombo", new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-224, -56), new Vector2(-30, 14), colorMetal);
         panelCombo = pCombo.gameObject;
         CrearCaja(pCombo, "BordeCombo", 0, 0, 4, 70, colorDorado);
@@ -563,7 +608,7 @@ public class HUDManager : MonoBehaviour
         barraComboTiempo = CrearPanelCompleto(fondoCombo, "ComboTiempo", colorDorado).GetComponent<Image>();
         panelCombo.SetActive(false);
 
-        // Banner cinematico al entrar en una sala
+        // Banner al cambiar de sala
         RectTransform pBanner = CrearPanel(raiz, "BannerSala", new Vector2(0.5f, 0.72f), new Vector2(0.5f, 0.72f), new Vector2(-240, -28), new Vector2(240, 28), new Color(0.05f, 0.06f, 0.07f, 0.80f));
         grupoBannerSala = pBanner.gameObject.AddComponent<CanvasGroup>();
         grupoBannerSala.alpha = 0f;
@@ -571,7 +616,7 @@ public class HUDManager : MonoBehaviour
         textoBannerSala = CrearEtiqueta(pBanner, "", 24, colorDorado, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, TextAlignmentOptions.Center);
         textoBannerSala.fontStyle = FontStyles.Bold;
 
-        // Minimapa interactivo debajo del contador de sellos
+        // Minimapa
         minimapa = gameObject.AddComponent<MinimapaMazmorra>();
         minimapa.Construir(raiz, fuenteTmp, vida != null ? vida.transform : null, progreso, inventario, puzzles, mejoras);
 
@@ -585,12 +630,17 @@ public class HUDManager : MonoBehaviour
     public void MostrarSala(string sala, bool potenciado)
     {
         reliquiaPotenciada = potenciado;
-        if (textoSala != null) textoSala.text = sala;
+        if (textoSala != null)
+        {
+            textoSala.text = sala;
+        }
     }
 
     public void MostrarBannerSala(string nombreSala)
     {
-        if (grupoBannerSala == null || textoBannerSala == null) return;
+        if (grupoBannerSala == null || textoBannerSala == null)
+            return;
+
         textoBannerSala.text = nombreSala;
         if (corrutinaBannerSala != null) StopCoroutine(corrutinaBannerSala);
         corrutinaBannerSala = StartCoroutine(AnimarBannerSala());
@@ -605,7 +655,9 @@ public class HUDManager : MonoBehaviour
             grupoBannerSala.alpha = Mathf.Clamp01(t / 0.35f);
             yield return null;
         }
+
         yield return new WaitForSecondsRealtime(1.6f);
+
         t = 0f;
         while (t < 0.55f)
         {
@@ -613,12 +665,15 @@ public class HUDManager : MonoBehaviour
             grupoBannerSala.alpha = 1f - Mathf.Clamp01(t / 0.55f);
             yield return null;
         }
+
         grupoBannerSala.alpha = 0f;
     }
 
     private void MostrarFlashDano(bool bloqueado)
     {
-        if (flashDano == null) return;
+        if (flashDano == null)
+            return;
+
         if (corrutinaFlash != null) StopCoroutine(corrutinaFlash);
         Color colorInicial = bloqueado ? new Color(0.45f, 0.84f, 1f, 0.24f) : new Color(0.88f, 0.12f, 0.10f, 0.36f);
         corrutinaFlash = StartCoroutine(AnimarFlash(colorInicial));
@@ -628,19 +683,29 @@ public class HUDManager : MonoBehaviour
     {
         float tiempo = 0f;
         const float duracion = 0.28f;
+
         while (tiempo < duracion)
         {
             tiempo += Time.unscaledDeltaTime;
             float alfa = Mathf.Lerp(colorInicial.a, 0f, tiempo / duracion);
-            if (flashDano != null) flashDano.color = new Color(colorInicial.r, colorInicial.g, colorInicial.b, alfa);
+            if (flashDano != null)
+            {
+                flashDano.color = new Color(colorInicial.r, colorInicial.g, colorInicial.b, alfa);
+            }
             yield return null;
         }
-        if (flashDano != null) flashDano.color = new Color(colorInicial.r, colorInicial.g, colorInicial.b, 0f);
+
+        if (flashDano != null)
+        {
+            flashDano.color = new Color(colorInicial.r, colorInicial.g, colorInicial.b, 0f);
+        }
     }
 
     public void MostrarGuardado()
     {
-        if (textoGuardado == null) return;
+        if (textoGuardado == null)
+            return;
+
         textoGuardado.text = "Guardado automático";
         if (corrutinaGuardado != null) StopCoroutine(corrutinaGuardado);
         corrutinaGuardado = StartCoroutine(LimpiarTextoGuardado());
@@ -649,7 +714,10 @@ public class HUDManager : MonoBehaviour
     private IEnumerator LimpiarTextoGuardado()
     {
         yield return new WaitForSecondsRealtime(3f);
-        if (textoGuardado != null) textoGuardado.text = "";
+        if (textoGuardado != null)
+        {
+            textoGuardado.text = "";
+        }
     }
 
     public void MostrarObjetivo(string objetivo, string interaccion)
@@ -660,12 +728,14 @@ public class HUDManager : MonoBehaviour
 
     private void ActualizarVida(int actual, int maxima)
     {
-        if (textoVida == null) return;
+        if (textoVida == null)
+            return;
+
         float proporcion = (float)actual / Mathf.Max(1, maxima);
         string estadoSalud = proporcion > 0.6f ? "ÓPTIMO" : (proporcion > 0.25f ? "PRECAUCIÓN" : "PELIGRO");
         Color color = proporcion > 0.6f ? colorVerde : (proporcion > 0.25f ? colorDorado : colorRojo);
 
-        textoVida.text = $"{estadoSalud}  ·  {actual} / {maxima}";
+        textoVida.text = estadoSalud + "  ·  " + actual + " / " + maxima;
         textoVida.color = color;
         barraVida.color = color;
         barraVida.rectTransform.anchorMax = new Vector2(proporcion, 1f);
@@ -674,7 +744,9 @@ public class HUDManager : MonoBehaviour
 
     private void ActualizarEstamina(float actual, float maxima)
     {
-        if (barraEstamina == null) return;
+        if (barraEstamina == null)
+            return;
+
         float prop = Mathf.Clamp01(actual / Mathf.Max(1f, maxima));
         barraEstamina.rectTransform.anchorMax = new Vector2(prop, 1f);
         barraEstamina.rectTransform.offsetMax = Vector2.zero;
@@ -683,7 +755,9 @@ public class HUDManager : MonoBehaviour
 
     private void ActualizarCombo(int racha, float progresoTiempo)
     {
-        if (panelCombo == null) return;
+        if (panelCombo == null)
+            return;
+
         if (racha < 2)
         {
             panelCombo.SetActive(false);
@@ -691,22 +765,24 @@ public class HUDManager : MonoBehaviour
         }
 
         panelCombo.SetActive(true);
-        textoCombo.text = $"COMBO x{racha}";
+        textoCombo.text = "COMBO x" + racha;
         int bonusPct = Mathf.Min(30, racha * 5);
-        textoBonusCombo.text = $"+{bonusPct}% DAÑO DE ESPADA";
+        textoBonusCombo.text = "+" + bonusPct + "% DAÑO DE ESPADA";
     }
 
     private void ActualizarInventario()
     {
-        if (inventario == null) return;
+        if (inventario == null)
+            return;
+
         if (textoPociones != null)
         {
-            textoPociones.text = $"[Q] POCIÓN  x{inventario.Pociones}";
+            textoPociones.text = "[Q] POCIÓN  x" + inventario.Pociones;
             textoPociones.color = inventario.Pociones > 0 ? new Color(1f, 0.48f, 0.64f) : new Color(0.55f, 0.55f, 0.55f);
         }
         if (textoRupias != null)
         {
-            textoRupias.text = $"◆ {inventario.Rupias} RUPIAS";
+            textoRupias.text = "◆ " + inventario.Rupias + " RUPIAS";
         }
     }
 
@@ -714,7 +790,7 @@ public class HUDManager : MonoBehaviour
     {
         if (textoSellos != null)
         {
-            textoSellos.text = $"Sellos reunidos  {progreso.Objetos.Count}/4";
+            textoSellos.text = "Sellos reunidos  " + progreso.Objetos.Count + "/4";
         }
     }
 
@@ -745,7 +821,8 @@ public class HUDManager : MonoBehaviour
         }
         panelOpcionesPausa = null;
 
-        if (estado == GameStates.InGame || estado == GameStates.GameStart) return;
+        if (estado == GameStates.InGame || estado == GameStates.GameStart)
+            return;
 
         RectTransform fondo = CrearPanelCompleto(raizCanvas, "PantallaEstado", new Color(0.015f, 0.018f, 0.019f, 0.92f));
         panelEstado = fondo.gameObject;
@@ -758,7 +835,7 @@ public class HUDManager : MonoBehaviour
 
             if (inventario != null)
             {
-                CrearTexto(cuadro, $"Tiempo: {FormatearTiempo(inventario.TiempoJugado)}  ·  Enemigos: {inventario.EnemigosDerrotados}  ·  Parries: {inventario.ParriesPerfectos}  ·  ◆{inventario.Rupias}", 15, colorDorado, 35, 92, 495, 28);
+                CrearTexto(cuadro, "Tiempo: " + FormatearTiempo(inventario.TiempoJugado) + "  ·  Enemigos: " + inventario.EnemigosDerrotados + "  ·  Parries: " + inventario.ParriesPerfectos + "  ·  ◆" + inventario.Rupias, 15, colorDorado, 35, 92, 495, 28);
             }
 
             CrearBoton(cuadro, "REANUDAR", 35, 134, 490, 50, () => game.CambiarEstado(GameStates.InGame));
@@ -787,44 +864,49 @@ public class HUDManager : MonoBehaviour
         }
         else if (estado == GameStates.Victory)
         {
-            RectTransform cuadro = CrearPanel(fondo, "PanelCentral", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-330, -265), new Vector2(330, 265), colorMetal);
-            CrearCaja(cuadro, "LineaVic", 0, 0, 660, 5, colorDorado);
-            TMP_Text tituloVic = CrearTexto(cuadro, "RELIQUIA RECUPERADA", 42, colorDorado, 35, 24, 590, 64);
+            RectTransform cuadro = CrearPanel(fondo, "PanelCentral", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-335, -285), new Vector2(335, 285), colorMetal);
+            CrearCaja(cuadro, "LineaVic", 0, 0, 670, 5, colorDorado);
+
+            TMP_Text tituloVic = CrearTexto(cuadro, "RELIQUIA RECUPERADA", 40, colorDorado, 35, 22, 600, 58);
             tituloVic.fontStyle = FontStyles.Bold;
-            CrearTexto(cuadro, "¡Has reclamado la Reliquia Sagrada y derrotado a la oleada final!", 19, colorMarfil, 35, 92, 590, 36);
+            CrearTexto(cuadro, "¡Has reclamado la Reliquia Sagrada y derrotado a la oleada final!", 18, colorMarfil, 35, 84, 600, 32);
 
             if (inventario != null)
             {
                 string rango = inventario.CalcularRangoFinal();
                 string resumen =
-                    $"Tiempo total:         {FormatearTiempo(inventario.TiempoJugado)}\n" +
-                    $"Enemigos derrotados:  {inventario.EnemigosDerrotados}\n" +
-                    $"Parries perfectos:    {inventario.ParriesPerfectos}\n" +
-                    $"Combo máximo:         x{inventario.ComboMaximo}\n" +
-                    $"Rupias recolectadas:  ◆ {inventario.Rupias}\n" +
-                    $"Cofres abiertos:      {inventario.CofresAbiertos.Count}\n" +
-                    $"Daño recibido:        {inventario.DanoRecibidoTotal}";
+                    "Tiempo total:         " + FormatearTiempo(inventario.TiempoJugado) + "\n" +
+                    "Enemigos derrotados:  " + inventario.EnemigosDerrotados + "\n" +
+                    "Parries perfectos:    " + inventario.ParriesPerfectos + "\n" +
+                    "Combo máximo:         x" + inventario.ComboMaximo + "\n" +
+                    "Rupias recolectadas:  ◆ " + inventario.Rupias + "\n" +
+                    "Cofres abiertos:      " + inventario.CofresAbiertos.Count + "\n" +
+                    "Daño recibido:        " + inventario.DanoRecibidoTotal;
 
-                CrearTexto(cuadro, resumen, 19, colorMarfil, 40, 146, 380, 225);
+                CrearTexto(cuadro, resumen, 18, colorMarfil, 40, 132, 385, 210);
 
-                RectTransform cajaRango = CrearCaja(cuadro, "CajaRango", 448, 160, 170, 175, colorOscuro);
+                RectTransform cajaRango = CrearCaja(cuadro, "CajaRango", 454, 144, 170, 175, colorOscuro);
                 CrearEtiqueta(cajaRango, "RANGO", 18, colorDorado, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -40), new Vector2(0, -10), TextAlignmentOptions.Center);
                 TMP_Text txtRango = CrearEtiqueta(cajaRango, rango, 86, rango == "S" ? colorDorado : colorVerde, Vector2.zero, Vector2.one, new Vector2(0, 10), new Vector2(0, -35), TextAlignmentOptions.Center);
                 txtRango.fontStyle = FontStyles.Bold;
             }
 
-            CrearBoton(cuadro, "MENÚ PRINCIPAL", 35, 424, 590, 56, game.VolverMenu);
+            // Creditos visibles al completar el puzzle final
+            CrearTexto(cuadro, "Créditos · Desarrollado por: " + nombresDesarrolladores + " · PPA UCN", 16, colorDorado, 40, 376, 595, 34);
+            CrearBoton(cuadro, "MENÚ PRINCIPAL", 35, 444, 600, 56, game.VolverMenu);
         }
     }
 
     private void AbrirOpcionesDesdePausa(RectTransform fondo, GameObject cuadroPausa)
     {
         cuadroPausa.SetActive(false);
+
         RectTransform panel = CrearPanel(fondo, "OpcionesPausa", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(-280, -255), new Vector2(280, 255), colorMetal);
         panelOpcionesPausa = panel.gameObject;
         CrearCaja(panel, "LineaOpt", 0, 0, 560, 4, colorDorado);
         CrearTexto(panel, "OPCIONES", 34, colorMarfil, 30, 26, 480, 54);
         MostrarOpciones(panel);
+
         CrearBoton(panel, "VOLVER A PAUSA", 30, 446, 240, 44, () =>
         {
             if (panelOpcionesPausa != null) Destroy(panelOpcionesPausa);
@@ -837,31 +919,8 @@ public class HUDManager : MonoBehaviour
         int total = Mathf.Max(0, Mathf.FloorToInt(segundos));
         int min = total / 60;
         int seg = total % 60;
-        return $"{min:00}:{seg:00}";
+        return min.ToString("00") + ":" + seg.ToString("00");
     }
 
-    private void OnDestroy()
-    {
-        if (vida != null)
-        {
-            vida.VidaCambiada -= ActualizarVida;
-            vida.DanoRecibido -= MostrarFlashDano;
-        }
-        if (progreso != null)
-        {
-            progreso.Cambio -= ActualizarProgreso;
-        }
-        if (movimiento != null)
-        {
-            movimiento.EstaminaCambiada -= ActualizarEstamina;
-        }
-        if (combate != null)
-        {
-            combate.ComboCambiado -= ActualizarCombo;
-        }
-        if (inventario != null)
-        {
-            inventario.InventarioCambiado -= ActualizarInventario;
-        }
-    }
+    #endregion
 }

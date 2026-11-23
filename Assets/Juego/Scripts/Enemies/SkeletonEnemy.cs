@@ -1,8 +1,10 @@
 using UnityEngine;
 
-// Esqueleto con espada: patrulla, telegrafia su golpe para permitir parry/esquiva y persigue al jugador
+// Esqueleto: patrulla, persigue al ver al jugador y realiza ataques cuerpo a cuerpo
 public class SkeletonEnemy : Enemy
 {
+    #region CLASS_VARIABLES
+
     private float momentoImpacto = -1f;
     private float recordarHasta;
     private float pausaPatrullaHasta;
@@ -14,6 +16,10 @@ public class SkeletonEnemy : Enemy
     public override string NombreVisible => EsElite && !string.IsNullOrEmpty(NombreElite) ? NombreElite : "Esqueleto Guardián";
     public override string EstadoVisual => EstaAturdido ? "ATURDIDO" : (momentoImpacto >= 0f ? "¡ATACANDO!" : "");
 
+    #endregion
+
+    #region CLASS_METHODS
+
     protected override void AlSerAturdido()
     {
         momentoImpacto = -1f;
@@ -21,13 +27,17 @@ public class SkeletonEnemy : Enemy
 
     public override bool IntentarAtacar()
     {
-        if (!EnJuego || EstaAturdido) return false;
+        if (!EnJuego || EstaAturdido)
+            return false;
 
         if (momentoImpacto >= 0f)
         {
             Detener();
             MirarJugador();
-            if (Time.time < momentoImpacto) return true;
+
+            if (Time.time < momentoImpacto)
+                return true;
+
             momentoImpacto = -1f;
             if (Distancia <= rangoAtaque + 0.32f && VeJugador())
             {
@@ -36,7 +46,8 @@ public class SkeletonEnemy : Enemy
             return true;
         }
 
-        if (Distancia > rangoAtaque || !VeJugador()) return false;
+        if (Distancia > rangoAtaque || !VeJugador())
+            return false;
 
         Detener();
         MirarJugador();
@@ -50,6 +61,7 @@ public class SkeletonEnemy : Enemy
             MostrarTelegrafoAtaque();
             AudioManager.Reproducir("Skeleton_Attack", transform.position, 0.92f, EsElite ? 0.88f : 1f, 0.06f);
         }
+
         return true;
     }
 
@@ -59,6 +71,7 @@ public class SkeletonEnemy : Enemy
         {
             AudioManager.Reproducir("Skeleton_Alert", transform.position, 0.85f, 1f, 0.05f);
         }
+
         observado = true;
         recordarHasta = Time.time + 2.5f;
         ultimaPosicionVista = jugador.transform.position;
@@ -66,7 +79,8 @@ public class SkeletonEnemy : Enemy
 
     public override bool IntentarPerseguir()
     {
-        if (EstaAturdido) return false;
+        if (EstaAturdido)
+            return false;
 
         if (VeJugador())
         {
@@ -87,7 +101,9 @@ public class SkeletonEnemy : Enemy
 
     public override bool Patrullar()
     {
-        if (!EnJuego || EstaAturdido) return false;
+        if (!EnJuego || EstaAturdido)
+            return false;
+
         observado = false;
 
         if (Time.time < pausaPatrullaHasta)
@@ -100,8 +116,9 @@ public class SkeletonEnemy : Enemy
         float x = (puntoPatrulla == 0 || puntoPatrulla == 3) ? -radio : radio;
         float z = puntoPatrulla < 2 ? radio : -radio;
         Vector3 destino = Origen + new Vector3(x, 0f, z);
+        Vector3 posPlana = new Vector3(transform.position.x, Origen.y, transform.position.z);
 
-        if (BloqueoRuta > 0.85f || Vector3.Distance(new Vector3(transform.position.x, Origen.y, transform.position.z), destino) < 0.30f)
+        if (BloqueoRuta > 0.85f || Vector3.Distance(posPlana, destino) < 0.30f)
         {
             puntoPatrulla = (puntoPatrulla + 1) % 4;
             pausaPatrullaHasta = Time.time + 0.85f;
@@ -113,4 +130,6 @@ public class SkeletonEnemy : Enemy
         MoverHacia(destino);
         return true;
     }
+
+    #endregion
 }

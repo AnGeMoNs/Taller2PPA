@@ -3,24 +3,36 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-// Coordina los cuatro puzzles de la mazmorra, el altar de sellos, la reliquia y los interactuables del mundo
+// Coordina los cuatro puzzles de sala, el altar final, la reliquia y las interacciones
 public class MazmorraPuzzles : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     public static readonly string[] Salas = { "Combate", "Placas", "Secuencia", "Trampas" };
     public static readonly string[] Objetos = { "LlaveRoja", "LlaveVerde", "LlaveAmarilla", "Gema" };
     private static readonly int[] OrdenPalancas = { 2, 1, 3 };
     private static readonly int PropColor = Shader.PropertyToID("_Color");
     private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
 
+    [Header("Sala combate")]
     [SerializeField] private Enemy[] guardianes;
+    [SerializeField] private Renderer[] antorchasCombate;
+
+    [Header("Sala placas")]
     [SerializeField] private Rigidbody[] cajas;
     [SerializeField] private Renderer[] placas;
     [SerializeField] private PlacaPresion[] placasPresion;
+
+    [Header("Sala secuencia")]
     [SerializeField] private Renderer[] palancas;
     [SerializeField] private PalancaAnimada[] palancasAnimadas;
     [SerializeField] private Renderer[] cristalesSecuencia;
+
+    [Header("Sala trampas")]
     [SerializeField] private Renderer[] controlesTrampa;
-    [SerializeField] private Renderer[] antorchasCombate;
+    [SerializeField] private TrampaPulso[] trampas;
+
+    [Header("Recompensas y altar final")]
     [SerializeField] private GameObject[] recompensas;
     [SerializeField] private Renderer[] pedestales;
     [SerializeField] private GameObject[] sellosAltar;
@@ -29,7 +41,6 @@ public class MazmorraPuzzles : MonoBehaviour
     [SerializeField] private GameObject puertaFinal;
     [FormerlySerializedAs("bate")]
     [SerializeField] private GameObject reliquia;
-    [SerializeField] private TrampaPulso[] trampas;
     [SerializeField] private InteraccionMazmorra[] interacciones;
 
     private ProgresoPartida progreso;
@@ -40,6 +51,7 @@ public class MazmorraPuzzles : MonoBehaviour
     private MejorasMazmorra mejoras;
     private PuertaAnimada puertaAnimada;
     private EquipoLinkVisual equipoLink;
+
     private Vector3[] origenCajas;
     private Quaternion[] rotacionCajas;
     private int pasoSecuencia;
@@ -51,6 +63,7 @@ public class MazmorraPuzzles : MonoBehaviour
     private bool finalCompletado;
     private OleadaFinal oleada;
     private float tiempoEnPlacas;
+
     private MaterialPropertyBlock bloqueColor;
     private readonly Dictionary<Renderer, bool> cacheColores = new Dictionary<Renderer, bool>();
     private readonly RaycastHit[] bufferVisibilidad = new RaycastHit[16];
@@ -63,45 +76,19 @@ public class MazmorraPuzzles : MonoBehaviour
     public bool EntradaFinalAbierta => listo && TieneTodosLosSellos();
     public OleadaFinal Oleada => oleada;
 
-    public void Inicializar(GameManager gm, VidaJugador player, ProgresoPartida prog, HUDManager ui, MejorasMazmorra extras = null)
-    {
-        bloqueColor = new MaterialPropertyBlock();
-        cacheColores.Clear();
-        game = gm;
-        jugador = player;
-        inventario = player != null ? player.GetComponent<InventarioJugador>() : null;
-        progreso = prog;
-        hud = ui;
-        mejoras = extras;
+    #endregion
 
-        if (puertaFinal != null) puertaAnimada = puertaFinal.GetComponent<PuertaAnimada>();
-        if (jugador != null) equipoLink = jugador.GetComponent<EquipoLinkVisual>();
-
-        oleada = new OleadaFinal(transform, game);
-        origenCajas = new Vector3[cajas.Length];
-        rotacionCajas = new Quaternion[cajas.Length];
-        for (int i = 0; i < cajas.Length; i++)
-        {
-            if (cajas[i] == null) continue;
-            origenCajas[i] = cajas[i].position;
-            rotacionCajas[i] = cajas[i].rotation;
-        }
-
-        listo = true;
-        progreso.Cambio += ActualizarMundo;
-        ActualizarMundo(true);
-    }
-
-    private void OnDestroy()
-    {
-        if (progreso != null) progreso.Cambio -= ActualizarMundo;
-    }
+    #region UNITY_METHODS
 
     private void Update()
     {
-        if (!listo || !game.EnJuego) return;
+        if (!listo || !game.EnJuego)
+            return;
 
-        if (inventario == null && jugador != null) inventario = jugador.GetComponent<InventarioJugador>();
+        if (inventario == null && jugador != null)
+        {
+            inventario = jugador.GetComponent<InventarioJugador>();
+        }
 
         if (recuperado && !finalCompletado && oleada.Completa)
         {
@@ -113,7 +100,10 @@ public class MazmorraPuzzles : MonoBehaviour
         }
 
         ActualizarCombate();
-        if (!progreso.SalaResuelta(Salas[1])) ComprobarPlacas();
+        if (!progreso.SalaResuelta(Salas[1]))
+        {
+            ComprobarPlacas();
+        }
 
         InteraccionMazmorra cercanaPuzzle = BuscarInteraccionCercana(out float distPuzzle);
         IInteractuable cercanoExtra = BuscarInteractuableExtraCercano(out float distExtra);
@@ -124,8 +114,10 @@ public class MazmorraPuzzles : MonoBehaviour
             : (cercanaPuzzle != null ? "[E] " + cercanaPuzzle.Texto : "");
 
         string sala = NombreSalaActual();
-        string idSala = IdSalaActual();
-        inventario?.RegistrarSalaDescubierta(idSala);
+        if (inventario != null)
+        {
+            inventario.RegistrarSalaDescubierta(IdSalaActual());
+        }
 
         string objetivo = ObjetivoActual();
         if (objetivo != ultimoObjetivo || prompt != ultimoPrompt || sala != ultimaSala)
@@ -154,6 +146,50 @@ public class MazmorraPuzzles : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        if (progreso != null)
+        {
+            progreso.Cambio -= ActualizarMundo;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
+    public void Inicializar(GameManager gm, VidaJugador player, ProgresoPartida prog, HUDManager ui, MejorasMazmorra extras = null)
+    {
+        bloqueColor = new MaterialPropertyBlock();
+        cacheColores.Clear();
+        game = gm;
+        jugador = player;
+        inventario = player != null ? player.GetComponent<InventarioJugador>() : null;
+        progreso = prog;
+        hud = ui;
+        mejoras = extras;
+
+        if (puertaFinal != null) puertaAnimada = puertaFinal.GetComponent<PuertaAnimada>();
+        if (jugador != null) equipoLink = jugador.GetComponent<EquipoLinkVisual>();
+
+        oleada = new OleadaFinal(transform, game);
+        origenCajas = new Vector3[cajas.Length];
+        rotacionCajas = new Quaternion[cajas.Length];
+
+        for (int i = 0; i < cajas.Length; i++)
+        {
+            if (cajas[i] == null)
+                continue;
+
+            origenCajas[i] = cajas[i].position;
+            rotacionCajas[i] = cajas[i].rotation;
+        }
+
+        listo = true;
+        progreso.Cambio += ActualizarMundo;
+        ActualizarMundo(true);
+    }
+
     private InteraccionMazmorra BuscarInteraccionCercana(out float mejorDistancia)
     {
         InteraccionMazmorra mejorObjeto = null;
@@ -163,7 +199,8 @@ public class MazmorraPuzzles : MonoBehaviour
         for (int i = 0; i < interacciones.Length; i++)
         {
             InteraccionMazmorra item = interacciones[i];
-            if (item == null || !item.gameObject.activeInHierarchy || !EstaDisponible(item)) continue;
+            if (item == null || !item.gameObject.activeInHierarchy || !EstaDisponible(item))
+                continue;
 
             float distancia = Vector3.Distance(referenciaJugador, item.transform.position);
             if (distancia < mejorDistancia && EsVisible(item.transform, item.Tipo == TipoInteraccion.Pedestal))
@@ -172,13 +209,15 @@ public class MazmorraPuzzles : MonoBehaviour
                 mejorObjeto = item;
             }
         }
+
         return mejorObjeto;
     }
 
     private IInteractuable BuscarInteractuableExtraCercano(out float mejorDistancia)
     {
         mejorDistancia = 2.6f;
-        if (mejoras == null) return null;
+        if (mejoras == null)
+            return null;
 
         IInteractuable mejor = null;
         Vector3 refJugador = jugador.transform.position + Vector3.up * 0.7f;
@@ -187,7 +226,8 @@ public class MazmorraPuzzles : MonoBehaviour
         for (int i = 0; i < lista.Count; i++)
         {
             IInteractuable item = lista[i];
-            if (item == null || !item.Disponible || item.Transform == null) continue;
+            if (item == null || !item.Disponible || item.Transform == null)
+                continue;
 
             float dist = Vector3.Distance(refJugador, item.Transform.position + Vector3.up * 0.45f);
             if (dist < mejorDistancia && EsVisible(item.Transform, false))
@@ -207,6 +247,7 @@ public class MazmorraPuzzles : MonoBehaviour
         {
             bool muerto = guardianes[i] == null || guardianes[i].Muerto;
             if (muerto) muertos++;
+
             if (antorchasCombate != null && i < antorchasCombate.Length)
             {
                 Pintar(antorchasCombate[i], muerto || progreso.SalaResuelta(Salas[0]));
@@ -228,7 +269,9 @@ public class MazmorraPuzzles : MonoBehaviour
         Vector3 origen = jugador.transform.position + Vector3.up * 1.25f;
         Vector3 destino = objetivo.position + Vector3.up * 0.35f;
         Vector3 delta = destino - origen;
-        if (delta.sqrMagnitude < 0.001f) return true;
+
+        if (delta.sqrMagnitude < 0.001f)
+            return true;
 
         int cantidad = Physics.RaycastNonAlloc(origen, delta.normalized, bufferVisibilidad, delta.magnitude, ~0, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < cantidad; i++)
@@ -238,8 +281,10 @@ public class MazmorraPuzzles : MonoBehaviour
             bool esObjetivo = colTransform.IsChildOf(objetivo) || objetivo.IsChildOf(colTransform);
             bool esPedestalPropio = permitirPadrePedestal && colTransform == objetivo.parent;
 
-            if (!esJugador && !esObjetivo && !esPedestalPropio) return false;
+            if (!esJugador && !esObjetivo && !esPedestalPropio)
+                return false;
         }
+
         return true;
     }
 
@@ -270,12 +315,25 @@ public class MazmorraPuzzles : MonoBehaviour
     private string ObjetivoActual()
     {
         Vector3 p = jugador.transform.position;
-        if (recuperado) return "RELIQUIA ACTIVA · Derrota la oleada final. Restantes: " + oleada.Restantes;
-        if (p.z > 18f) return mascaraAltar == 15 ? "ALTAR: reclama la Reliquia Sagrada del centro." : "ALTAR: coloca los cuatro sellos en sus pedestales (" + ContarSellos() + "/4).";
-        if (p.x < -6f) return progreso.TieneObjeto(Objetos[0]) ? "ARENA: completada." : progreso.SalaResuelta(Salas[0]) ? "ARENA: recoge la llave roja." : "ARENA: derrota a los guardianes (Tab fijar · Espacio esquivar · Clic Der. parry).";
-        if (p.x > 6f) return progreso.TieneObjeto(Objetos[1]) ? "PLACAS: completado." : progreso.SalaResuelta(Salas[1]) ? "PLACAS: recoge la llave verde." : "PLACAS: empuja una caja sobre cada placa luminosa. Usa RESET si la atascas.";
-        if (p.z < -6f) return progreso.TieneObjeto(Objetos[2]) ? "PALANCAS: completado." : progreso.SalaResuelta(Salas[2]) ? "PALANCAS: recoge la llave amarilla." : "PALANCAS: lee el mural (II - I - III) y activa en orden. " + pasoSecuencia + "/3";
-        if (p.z > 6f) return progreso.TieneObjeto(Objetos[3]) ? (TieneTodosLosSellos() ? "TRAMPAS: completado. La puerta del altar está abierta." : "TRAMPAS: completado.") : progreso.SalaResuelta(Salas[3]) ? "TRAMPAS: recoge la gema." : "TRAMPAS: espera la luz verde (ámbar = aviso) y activa los controles en orden. " + controlesActivados + "/2";
+
+        if (recuperado)
+            return "RELIQUIA ACTIVA · Derrota la oleada final. Restantes: " + oleada.Restantes;
+
+        if (p.z > 18f)
+            return mascaraAltar == 15 ? "ALTAR: reclama la Reliquia Sagrada del centro." : "ALTAR: coloca los cuatro sellos en sus pedestales (" + ContarSellos() + "/4).";
+
+        if (p.x < -6f)
+            return progreso.TieneObjeto(Objetos[0]) ? "ARENA: completada." : progreso.SalaResuelta(Salas[0]) ? "ARENA: recoge la llave roja." : "ARENA: derrota a los guardianes (Tab fijar · Espacio esquivar · Clic Der. parry).";
+
+        if (p.x > 6f)
+            return progreso.TieneObjeto(Objetos[1]) ? "PLACAS: completado." : progreso.SalaResuelta(Salas[1]) ? "PLACAS: recoge la llave verde." : "PLACAS: empuja una caja sobre cada placa luminosa. Usa RESET si la atascas.";
+
+        if (p.z < -6f)
+            return progreso.TieneObjeto(Objetos[2]) ? "PALANCAS: completado." : progreso.SalaResuelta(Salas[2]) ? "PALANCAS: recoge la llave amarilla." : "PALANCAS: lee el mural (II - I - III) y activa en orden. " + pasoSecuencia + "/3";
+
+        if (p.z > 6f)
+            return progreso.TieneObjeto(Objetos[3]) ? (TieneTodosLosSellos() ? "TRAMPAS: completado. La puerta del altar está abierta." : "TRAMPAS: completado.") : progreso.SalaResuelta(Salas[3]) ? "TRAMPAS: recoge la gema." : "TRAMPAS: espera la luz verde (ámbar = aviso) y activa los controles en orden. " + controlesActivados + "/2";
+
         return TieneTodosLosSellos() ? "La reja norte se ha levantado. Entra a la Cámara del Altar." : "Reúne los 4 sellos. Oeste: arena · Este: placas · Sur: palancas · Norte: trampas.";
     }
 
@@ -321,8 +379,14 @@ public class MazmorraPuzzles : MonoBehaviour
                 {
                     pasoSecuencia++;
                     AudioManager.Reproducir("UI_Click", null, 0.9f, 1.0f + pasoSecuencia * 0.1f);
-                    if (pasoSecuencia == OrdenPalancas.Length) ResolverSala(2);
-                    else hud.Aviso("Palanca correcta (" + pasoSecuencia + "/3)");
+                    if (pasoSecuencia == OrdenPalancas.Length)
+                    {
+                        ResolverSala(2);
+                    }
+                    else
+                    {
+                        hud.Aviso("Palanca correcta (" + pasoSecuencia + "/3)");
+                    }
                 }
                 else
                 {
@@ -351,8 +415,14 @@ public class MazmorraPuzzles : MonoBehaviour
                 {
                     controlesActivados++;
                     AudioManager.Reproducir("UI_Click", null, 0.9f, 1.15f);
-                    if (controlesActivados == 2) ResolverSala(3);
-                    else hud.Aviso("Control 1 desbloqueado. Avanza al Control 2.");
+                    if (controlesActivados == 2)
+                    {
+                        ResolverSala(3);
+                    }
+                    else
+                    {
+                        hud.Aviso("Control 1 desbloqueado. Avanza al Control 2.");
+                    }
                 }
                 else
                 {
@@ -380,8 +450,9 @@ public class MazmorraPuzzles : MonoBehaviour
                 }
                 recuperado = true;
                 jugador.PotenciarConReliquia();
-                jugador.GetComponent<Movimiento3D>()?.ReproducirPowerUp();
-                equipoLink?.EstablecerPotenciado(true);
+                Movimiento3D mov = jugador.GetComponent<Movimiento3D>();
+                if (mov != null) mov.ReproducirPowerUp();
+                if (equipoLink != null) equipoLink.EstablecerPotenciado(true);
                 ActualizarMundo();
                 oleada.Activar();
                 AudioManager.Reproducir("Item_Pickup");
@@ -394,10 +465,12 @@ public class MazmorraPuzzles : MonoBehaviour
 
     private void ComprobarPlacas()
     {
-        if (placas == null || placas.Length < 2 || placas[0] == null || placas[1] == null) return;
+        if (placas == null || placas.Length < 2 || placas[0] == null || placas[1] == null)
+            return;
 
         int cajaA = BuscarCajaSobre(placas[0].transform.position);
         int cajaB = BuscarCajaSobre(placas[1].transform.position);
+
         ActualizarVisualPlaca(0, cajaA >= 0);
         ActualizarVisualPlaca(1, cajaB >= 0);
 
@@ -407,7 +480,10 @@ public class MazmorraPuzzles : MonoBehaviour
         if (cajaA >= 0 && cajaB >= 0 && cajaA != cajaB)
         {
             tiempoEnPlacas += Time.deltaTime;
-            if (tiempoEnPlacas >= 0.35f) ResolverSala(1);
+            if (tiempoEnPlacas >= 0.35f)
+            {
+                ResolverSala(1);
+            }
         }
         else
         {
@@ -417,9 +493,13 @@ public class MazmorraPuzzles : MonoBehaviour
 
     private void CentrarSuave(Rigidbody caja, Vector3 centroPlaca)
     {
-        if (caja == null) return;
+        if (caja == null)
+            return;
+
         Vector3 diferencia = new Vector3(centroPlaca.x - caja.position.x, 0f, centroPlaca.z - caja.position.z);
-        if (diferencia.sqrMagnitude < 0.0004f || caja.linearVelocity.sqrMagnitude > 1.2f) return;
+        if (diferencia.sqrMagnitude < 0.0004f || caja.linearVelocity.sqrMagnitude > 1.2f)
+            return;
+
         caja.MovePosition(caja.position + diferencia * Mathf.Min(1f, Time.deltaTime * 4.5f));
     }
 
@@ -439,7 +519,9 @@ public class MazmorraPuzzles : MonoBehaviour
     {
         for (int i = 0; i < cajas.Length; i++)
         {
-            if (cajas[i] == null) continue;
+            if (cajas[i] == null)
+                continue;
+
             Vector3 diff = cajas[i].position - centro;
             if (Mathf.Abs(diff.x) < 0.78f && Mathf.Abs(diff.z) < 0.78f && diff.y > 0.15f && diff.y < 1.1f)
             {
@@ -453,7 +535,9 @@ public class MazmorraPuzzles : MonoBehaviour
     {
         for (int i = 0; i < cajas.Length; i++)
         {
-            if (cajas[i] == null) continue;
+            if (cajas[i] == null)
+                continue;
+
             cajas[i].position = origenCajas[i];
             cajas[i].rotation = rotacionCajas[i];
             cajas[i].linearVelocity = Vector3.zero;
@@ -465,7 +549,10 @@ public class MazmorraPuzzles : MonoBehaviour
     private void ResolverSala(int indiceSala)
     {
         progreso.ResolverSala(Salas[indiceSala]);
-        mejoras?.NotificarSalaResuelta();
+        if (mejoras != null)
+        {
+            mejoras.NotificarSalaResuelta();
+        }
         CamaraTerceraPersona.Sacudir(0.09f, 0.2f);
         hud.Aviso("¡Prueba superada! Recoge tu sello (el Santuario ha recargado su bendición).");
         game.Guardar(false);
@@ -475,16 +562,21 @@ public class MazmorraPuzzles : MonoBehaviour
     {
         for (int i = 0; i < Salas.Length; i++)
         {
-            if (!progreso.SalaResuelta(Salas[i]) || !progreso.TieneObjeto(Objetos[i])) return false;
+            if (!progreso.SalaResuelta(Salas[i]) || !progreso.TieneObjeto(Objetos[i]))
+                return false;
         }
         return true;
     }
 
-    private void ActualizarMundo() => ActualizarMundo(false);
+    private void ActualizarMundo()
+    {
+        ActualizarMundo(false);
+    }
 
     private void ActualizarMundo(bool instantaneo)
     {
-        if (!listo) return;
+        if (!listo)
+            return;
 
         for (int i = 0; i < 4; i++)
         {
@@ -497,12 +589,18 @@ public class MazmorraPuzzles : MonoBehaviour
         bool abrirPuerta = TieneTodosLosSellos();
         if (puertaAnimada != null)
         {
-            if (!puertaAnimada.Abierta && abrirPuerta && game.EnJuego) AudioManager.Reproducir("Door_Open");
+            if (!puertaAnimada.Abierta && abrirPuerta && game.EnJuego)
+            {
+                AudioManager.Reproducir("Door_Open");
+            }
             puertaAnimada.EstablecerAbierta(abrirPuerta, instantaneo);
         }
         else if (puertaFinal != null)
         {
-            if (puertaFinal.activeSelf && abrirPuerta && game.EnJuego) AudioManager.Reproducir("Door_Open");
+            if (puertaFinal.activeSelf && abrirPuerta && game.EnJuego)
+            {
+                AudioManager.Reproducir("Door_Open");
+            }
             puertaFinal.SetActive(!abrirPuerta);
         }
 
@@ -530,14 +628,21 @@ public class MazmorraPuzzles : MonoBehaviour
 
         if (progreso.SalaResuelta(Salas[1]))
         {
-            for (int i = 0; i < placas.Length; i++) ActualizarVisualPlaca(i, true);
+            for (int i = 0; i < placas.Length; i++)
+            {
+                ActualizarVisualPlaca(i, true);
+            }
         }
 
         bool trampasResueltas = progreso.SalaResuelta(Salas[3]);
         for (int i = 0; i < trampas.Length; i++)
         {
-            if (trampas[i] != null) trampas[i].Desactivada = trampasResueltas;
+            if (trampas[i] != null)
+            {
+                trampas[i].Desactivada = trampasResueltas;
+            }
         }
+
         if (controlesTrampa != null)
         {
             for (int i = 0; i < controlesTrampa.Length; i++)
@@ -550,6 +655,7 @@ public class MazmorraPuzzles : MonoBehaviour
         {
             bool colocado = (mascaraAltar & (1 << i)) != 0;
             Pintar(pedestales[i], colocado);
+
             if (sellosAltar != null && i < sellosAltar.Length && sellosAltar[i] != null)
             {
                 sellosAltar[i].SetActive(colocado);
@@ -563,13 +669,17 @@ public class MazmorraPuzzles : MonoBehaviour
         bool mostrarReliquia = abrirPuerta && mascaraAltar == 15 && !recuperado;
         if (reliquia != null) reliquia.SetActive(mostrarReliquia);
         if (hazReliquia != null) hazReliquia.SetActive(mostrarReliquia);
-        equipoLink?.EstablecerPotenciado(recuperado);
+        if (equipoLink != null) equipoLink.EstablecerPotenciado(recuperado);
     }
 
     private void Pintar(Renderer r, bool activo)
     {
-        if (r == null) return;
-        if (cacheColores.TryGetValue(r, out bool anterior) && anterior == activo) return;
+        if (r == null)
+            return;
+
+        if (cacheColores.TryGetValue(r, out bool anterior) && anterior == activo)
+            return;
+
         if (bloqueColor == null) bloqueColor = new MaterialPropertyBlock();
 
         Color color = activo ? new Color(0.19f, 0.86f, 0.38f) : new Color(0.55f, 0.29f, 0.13f);
@@ -582,8 +692,12 @@ public class MazmorraPuzzles : MonoBehaviour
 
     private void PintarDorado(Renderer r, bool activo)
     {
-        if (r == null) return;
-        if (cacheColores.TryGetValue(r, out bool anterior) && anterior == activo) return;
+        if (r == null)
+            return;
+
+        if (cacheColores.TryGetValue(r, out bool anterior) && anterior == activo)
+            return;
+
         if (bloqueColor == null) bloqueColor = new MaterialPropertyBlock();
 
         Color color = activo ? new Color(1f, 0.80f, 0.22f) : new Color(0.24f, 0.21f, 0.18f);
@@ -607,7 +721,9 @@ public class MazmorraPuzzles : MonoBehaviour
         datos.rotacionesCajas = new Quaternion[cajas.Length];
         for (int i = 0; i < cajas.Length; i++)
         {
-            if (cajas[i] == null) continue;
+            if (cajas[i] == null)
+                continue;
+
             datos.cajas[i] = cajas[i].position;
             datos.rotacionesCajas[i] = cajas[i].rotation;
         }
@@ -623,7 +739,10 @@ public class MazmorraPuzzles : MonoBehaviour
 
         if (recuperado && !finalCompletado)
         {
-            if (oleada.Disponible) oleada.Activar();
+            if (oleada.Disponible)
+            {
+                oleada.Activar();
+            }
             else
             {
                 recuperado = false;
@@ -636,7 +755,9 @@ public class MazmorraPuzzles : MonoBehaviour
         {
             for (int i = 0; i < cajas.Length; i++)
             {
-                if (cajas[i] == null) continue;
+                if (cajas[i] == null)
+                    continue;
+
                 cajas[i].position = datos.cajas[i];
                 if (datos.rotacionesCajas != null && datos.rotacionesCajas.Length == cajas.Length)
                 {
@@ -647,4 +768,6 @@ public class MazmorraPuzzles : MonoBehaviour
 
         ActualizarMundo(true);
     }
+
+    #endregion
 }

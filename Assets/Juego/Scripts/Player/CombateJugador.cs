@@ -3,10 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Gestiona el combate cuerpo a cuerpo, racha de combo, contraataque de parry, ataque giratorio y hit-stop
+// Combate cuerpo a cuerpo del jugador, racha de combo, contraataque y ataque giratorio
 [RequireComponent(typeof(Movimiento3D), typeof(VidaJugador))]
 public class CombateJugador : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
+    [Header("Ataque")]
     [SerializeField] private int dano = 25;
     [SerializeField] private float alcance = 1.75f;
     [SerializeField] private float radio = 1.05f;
@@ -35,6 +38,10 @@ public class CombateJugador : MonoBehaviour
     public bool ContraataqueListo => Time.time < contraataqueHasta;
 
     public event Action<int, float> ComboCambiado;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
@@ -71,6 +78,10 @@ public class CombateJugador : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region CLASS_METHODS
+
     public void ActivarContraataque()
     {
         contraataqueHasta = Time.time + DuracionContraataque;
@@ -78,8 +89,14 @@ public class CombateJugador : MonoBehaviour
 
     public void SolicitarHitStop(float duracion)
     {
-        if (GameManager.Instance == null || !GameManager.Instance.EnJuego) return;
-        if (corrutinaHitStop != null) StopCoroutine(corrutinaHitStop);
+        if (GameManager.Instance == null || !GameManager.Instance.EnJuego)
+            return;
+
+        if (corrutinaHitStop != null)
+        {
+            StopCoroutine(corrutinaHitStop);
+        }
+
         corrutinaHitStop = StartCoroutine(AplicarHitStop(duracion));
     }
 
@@ -87,6 +104,7 @@ public class CombateJugador : MonoBehaviour
     {
         Time.timeScale = 0.08f;
         yield return new WaitForSecondsRealtime(duracion);
+
         if (GameManager.Instance == null || GameManager.Instance.EnJuego)
         {
             Time.timeScale = 1f;
@@ -102,8 +120,13 @@ public class CombateJugador : MonoBehaviour
 
     private void EjecutarGolpe()
     {
-        if (vida.Muerto) return;
-        if (inventario == null) inventario = GetComponent<InventarioJugador>();
+        if (vida.Muerto)
+            return;
+
+        if (inventario == null)
+        {
+            inventario = GetComponent<InventarioJugador>();
+        }
 
         bool potenciado = puzzles != null && puzzles.Recuperado;
         bool esContraataque = ContraataqueListo;
@@ -112,7 +135,11 @@ public class CombateJugador : MonoBehaviour
 
         float multiplicadorRacha = 1f + Mathf.Min(0.30f, rachaCombo * 0.05f);
         int danoFinal = potenciado ? dano * 2 : dano;
-        if (esFinisher) danoFinal = Mathf.RoundToInt(danoFinal * 1.35f);
+
+        if (esFinisher)
+        {
+            danoFinal = Mathf.RoundToInt(danoFinal * 1.35f);
+        }
         if (esContraataque)
         {
             danoFinal = Mathf.RoundToInt(danoFinal * 1.75f);
@@ -133,15 +160,23 @@ public class CombateJugador : MonoBehaviour
 
     private void EjecutarAtaqueGiratorio()
     {
-        if (vida.Muerto) return;
-        if (inventario == null) inventario = GetComponent<InventarioJugador>();
+        if (vida.Muerto)
+            return;
+
+        if (inventario == null)
+        {
+            inventario = GetComponent<InventarioJugador>();
+        }
 
         bool potenciado = puzzles != null && puzzles.Recuperado;
         bool esContraataque = ContraataqueListo;
         int danoGiro = Mathf.RoundToInt((potenciado ? dano * 2 : dano) * (esContraataque ? 2.1f : 1.55f));
-        if (esContraataque) contraataqueHasta = 0f;
+        if (esContraataque)
+        {
+            contraataqueHasta = 0f;
+        }
 
-        AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.AtaqueGiratorio, 0.85f);
+        AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.AtaqueGiratorio, 0.85f);
         AudioManager.Reproducir("Player_Kick", null, 0.85f, 0.82f);
         EfectosVisuales.OndaAtaqueGiratorio(transform.position, potenciado || esContraataque);
         CamaraTerceraPersona.Sacudir(0.14f, 0.18f);
@@ -166,9 +201,9 @@ public class CombateJugador : MonoBehaviour
         for (int i = 0; i < totalColisiones; i++)
         {
             Collider col = bufferColisiones[i];
-            if (col == null) continue;
+            if (col == null)
+                continue;
 
-            // 1. Revisar objetos rompibles (barriles, anforas)
             ObjetoRompible rompible = col.GetComponentInParent<ObjetoRompible>();
             if (rompible != null && !rompible.Roto && rompiblesGolpeados.Add(rompible))
             {
@@ -177,9 +212,9 @@ public class CombateJugador : MonoBehaviour
                 continue;
             }
 
-            // 2. Revisar enemigos con verificacion de linea de vista contra muros
             Enemy enemigo = col.GetComponentInParent<Enemy>();
-            if (enemigo == null || enemigo.Muerto || golpeados.Contains(enemigo)) continue;
+            if (enemigo == null || enemigo.Muerto || golpeados.Contains(enemigo))
+                continue;
 
             if (!EstaBloqueadoPorMuro(col, enemigo) && golpeados.Add(enemigo))
             {
@@ -201,7 +236,9 @@ public class CombateJugador : MonoBehaviour
         Vector3 origenRayo = transform.position + Vector3.up * 0.78f;
         Vector3 puntoCercano = colEnemigo.ClosestPoint(origenRayo);
         Vector3 direccion = puntoCercano - origenRayo;
-        if (direccion.sqrMagnitude <= 0.001f) return false;
+
+        if (direccion.sqrMagnitude <= 0.001f)
+            return false;
 
         int impactos = Physics.RaycastNonAlloc(origenRayo, direccion.normalized, bufferObstaculos, direccion.magnitude, ~0, QueryTriggerInteraction.Ignore);
         for (int j = 0; j < impactos; j++)
@@ -214,6 +251,7 @@ public class CombateJugador : MonoBehaviour
                 return true;
             }
         }
+
         return false;
     }
 
@@ -221,7 +259,14 @@ public class CombateJugador : MonoBehaviour
     {
         rachaCombo++;
         comboExpiraEn = Time.time + DuracionVentanaCombo;
-        inventario?.RegistrarCombo(rachaCombo);
+
+        if (inventario != null)
+        {
+            inventario.RegistrarCombo(rachaCombo);
+        }
+
         ComboCambiado?.Invoke(rachaCombo, 1f);
     }
+
+    #endregion
 }

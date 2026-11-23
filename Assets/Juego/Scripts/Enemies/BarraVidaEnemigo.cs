@@ -1,20 +1,27 @@
 using UnityEngine;
 
-// Barra de vida 3D flotante sobre cada enemigo usando materiales compartidos para evitar fugas de memoria
+// Barra de vida 3D flotante sobre cada enemigo
 public class BarraVidaEnemigo : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     private static readonly int PropColor = Shader.PropertyToID("_Color");
     private static readonly int PropBaseColor = Shader.PropertyToID("_BaseColor");
     private static Material materialFondoCompartido;
     private static Material materialRellenoCompartido;
+
+    private const float AnchoBase = 0.85f;
 
     private Transform contenedor;
     private Transform barraRelleno;
     private Renderer renderRelleno;
     private MaterialPropertyBlock bloqueColor;
     private Camera camaraPrincipal;
-    private const float AnchoBase = 0.85f;
     private float alturaBarra = 2.0f;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void LimpiarEstaticos()
@@ -23,10 +30,30 @@ public class BarraVidaEnemigo : MonoBehaviour
         materialRellenoCompartido = null;
     }
 
+    private void LateUpdate()
+    {
+        if (contenedor == null || !contenedor.gameObject.activeSelf)
+            return;
+
+        if (camaraPrincipal == null)
+        {
+            camaraPrincipal = Camera.main;
+        }
+        if (camaraPrincipal != null)
+        {
+            contenedor.rotation = camaraPrincipal.transform.rotation;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
     public void Inicializar(float alturaEnemigo)
     {
         alturaBarra = Mathf.Max(1.05f, alturaEnemigo + 0.32f);
-        if (contenedor != null) return;
+        if (contenedor != null)
+            return;
 
         AsegurarMateriales();
         bloqueColor = new MaterialPropertyBlock();
@@ -49,6 +76,7 @@ public class BarraVidaEnemigo : MonoBehaviour
         relleno.transform.SetParent(contenedor, false);
         relleno.transform.localPosition = new Vector3(0f, 0f, -0.006f);
         relleno.transform.localScale = new Vector3(AnchoBase, 0.075f, 1f);
+
         barraRelleno = relleno.transform;
         renderRelleno = relleno.GetComponent<Renderer>();
         renderRelleno.sharedMaterial = materialRellenoCompartido;
@@ -59,6 +87,7 @@ public class BarraVidaEnemigo : MonoBehaviour
     private static void AsegurarMateriales()
     {
         Shader unlit = Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
+
         if (materialFondoCompartido == null)
         {
             materialFondoCompartido = new Material(unlit) { color = new Color(0.06f, 0.07f, 0.08f, 0.9f) };
@@ -71,7 +100,9 @@ public class BarraVidaEnemigo : MonoBehaviour
 
     public void Actualizar(int vida, int vidaMax)
     {
-        if (contenedor == null) return;
+        if (contenedor == null)
+            return;
+
         if (vida <= 0)
         {
             contenedor.gameObject.SetActive(false);
@@ -95,10 +126,5 @@ public class BarraVidaEnemigo : MonoBehaviour
         renderRelleno.SetPropertyBlock(bloqueColor);
     }
 
-    private void LateUpdate()
-    {
-        if (contenedor == null || !contenedor.gameObject.activeSelf) return;
-        if (camaraPrincipal == null) camaraPrincipal = Camera.main;
-        if (camaraPrincipal != null) contenedor.rotation = camaraPrincipal.transform.rotation;
-    }
+    #endregion
 }

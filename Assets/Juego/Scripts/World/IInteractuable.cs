@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Contrato comun para elementos interactuables adicionales del mundo (cofres, santuarios, etc.)
+// Interfaz comun para objetos interactuables del mundo con la tecla E
 public interface IInteractuable
 {
     Transform Transform { get; }

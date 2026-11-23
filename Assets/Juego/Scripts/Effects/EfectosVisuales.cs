@@ -1,11 +1,17 @@
 using UnityEngine;
 
-// Centraliza efectos visuales procedurales y textos flotantes 3D reutilizando materiales compartidos
+// Utilidad para generar particulas, anillos y textos flotantes 3D reutilizando materiales
 public static class EfectosVisuales
 {
+    #region CLASS_VARIABLES
+
     private static Material materialParticula;
     private static Material materialAnillo;
     private static Font fuenteDefecto;
+
+    #endregion
+
+    #region CLASS_METHODS
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ReiniciarEstaticos()
@@ -93,17 +99,21 @@ public static class EfectosVisuales
 
     public static void EstrellasAturdimiento(Transform objetivo, float duracion)
     {
-        if (objetivo == null) return;
+        if (objetivo == null)
+            return;
+
         GameObject fx = new GameObject("FX_Aturdido");
         fx.transform.SetParent(objetivo, false);
         fx.transform.localPosition = Vector3.up * 1.95f;
+
         EstrellasOrbitantes orbita = fx.AddComponent<EstrellasOrbitantes>();
         orbita.Inicializar(duracion, ObtenerMaterialAnillo());
     }
 
     public static void TextoFlotante(Vector3 posicion, string texto, Color color, float escala = 1f)
     {
-        if (string.IsNullOrEmpty(texto)) return;
+        if (string.IsNullOrEmpty(texto))
+            return;
 
         if (fuenteDefecto == null)
         {
@@ -185,6 +195,7 @@ public static class EfectosVisuales
     {
         GameObject anillo = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         anillo.name = "FX_Anillo";
+
         Collider col = anillo.GetComponent<Collider>();
         if (col != null) Object.Destroy(col);
 
@@ -199,6 +210,8 @@ public static class EfectosVisuales
         AnilloExpansivo comp = anillo.AddComponent<AnilloExpansivo>();
         comp.Inicializar(render, color, escalaInicial, escalaFinal, duracion);
     }
+
+    #endregion
 
     private sealed class AnilloExpansivo : MonoBehaviour
     {
@@ -230,15 +243,21 @@ public static class EfectosVisuales
             float t = Mathf.Clamp01(tiempo / duracion);
             float curva = 1f - (1f - t) * (1f - t);
             float escala = Mathf.Lerp(inicio, fin, curva);
+
             transform.localScale = new Vector3(escala, Mathf.Lerp(0.035f, 0.004f, t), escala);
             AplicarColor(1f - t);
 
-            if (t >= 1f) Destroy(gameObject);
+            if (t >= 1f)
+            {
+                Destroy(gameObject);
+            }
         }
 
         private void AplicarColor(float factor)
         {
-            if (render == null) return;
+            if (render == null)
+                return;
+
             Color c = colorBase * Mathf.Lerp(0.25f, 1.2f, factor);
             c.a = factor;
             render.GetPropertyBlock(bloque);
@@ -269,6 +288,7 @@ public static class EfectosVisuales
                 GameObject s = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 Collider col = s.GetComponent<Collider>();
                 if (col != null) Destroy(col);
+
                 s.transform.SetParent(transform, false);
                 s.transform.localScale = Vector3.one * 0.11f;
                 Renderer r = s.GetComponent<Renderer>();
@@ -290,7 +310,9 @@ public static class EfectosVisuales
             float anguloBase = Time.time * 5.2f;
             for (int i = 0; i < estrellas.Length; i++)
             {
-                if (estrellas[i] == null) continue;
+                if (estrellas[i] == null)
+                    continue;
+
                 float a = anguloBase + i * (Mathf.PI * 2f / estrellas.Length);
                 estrellas[i].localPosition = new Vector3(Mathf.Cos(a) * 0.36f, Mathf.Sin(Time.time * 8f + i) * 0.04f, Mathf.Sin(a) * 0.36f);
                 estrellas[i].Rotate(180f * Time.deltaTime, 220f * Time.deltaTime, 0f);
@@ -334,7 +356,10 @@ public static class EfectosVisuales
                 mesh.color = c;
             }
 
-            if (t >= 1f) Destroy(gameObject);
+            if (t >= 1f)
+            {
+                Destroy(gameObject);
+            }
         }
     }
 }

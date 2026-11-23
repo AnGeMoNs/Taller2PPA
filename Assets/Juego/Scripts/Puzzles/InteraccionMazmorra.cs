@@ -1,10 +1,20 @@
 using UnityEngine;
 
-public enum TipoInteraccion { Recompensa, Palanca, ResetCajas, ControlTrampa, Pedestal, Reliquia }
+public enum TipoInteraccion
+{
+    Recompensa,
+    Palanca,
+    ResetCajas,
+    ControlTrampa,
+    Pedestal,
+    Reliquia
+}
 
-// Marca un objeto interactuable con la tecla E dentro de la mazmorra
+// Identifica un objeto de puzzle interactuable con la tecla E
 public class InteraccionMazmorra : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     [SerializeField] private TipoInteraccion tipo;
     [SerializeField] private int indice;
     [SerializeField] private string texto;
@@ -13,10 +23,16 @@ public class InteraccionMazmorra : MonoBehaviour
     public int Indice => indice;
     public string Texto => texto;
 
+    #endregion
+
+    #region CLASS_METHODS
+
     public void Configurar(TipoInteraccion nuevoTipo, int nuevoIndice, string etiqueta)
     {
         tipo = nuevoTipo;
         indice = nuevoIndice;
         texto = etiqueta;
     }
+
+    #endregion
 }

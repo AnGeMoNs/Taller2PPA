@@ -1,8 +1,11 @@
 using UnityEngine;
 
-// Tortuga con pinchos: sigue una ruta definida, se protege con su caparazon y contraataca brevemente al salir
+// Tortuga con pinchos: recorre una ruta fija, se defiende con su caparazon y embiste al salir
 public class TurtleEnemy : Enemy
 {
+    #region CLASS_VARIABLES
+
+    [Header("Ruta de patrulla")]
     [SerializeField]
     private Vector3[] desplazamientosRuta =
     {
@@ -24,6 +27,10 @@ public class TurtleEnemy : Enemy
     protected override float TiempoDesaparicion => 2.0f;
     public override string NombreVisible => EsElite && !string.IsNullOrEmpty(NombreElite) ? NombreElite : "Tortuga Blindada";
     public override string EstadoVisual => EstaAturdido ? "ATURDIDO" : (Time.time < defensaHasta ? "CAPARAZÓN (-50%)" : (Time.time < embestidaHasta ? "¡EMBESTIDA!" : ""));
+
+    #endregion
+
+    #region CLASS_METHODS
 
     public void ConfigurarRuta(Vector3[] offsetsLocales)
     {
@@ -47,7 +54,8 @@ public class TurtleEnemy : Enemy
 
     public override bool Patrullar()
     {
-        if (!EnJuego || EstaAturdido) return false;
+        if (!EnJuego || EstaAturdido)
+            return false;
 
         if (Time.time < defensaHasta)
         {
@@ -61,7 +69,7 @@ public class TurtleEnemy : Enemy
         {
             estabaDefendiendo = false;
             SetDefendiendo(false);
-            // Al salir del caparazon realiza una breve embestida si el jugador esta cerca
+
             if (jugador != null && DentroTerritorio && Distancia < 4.8f)
             {
                 Vector3 hacia = jugador.transform.position - transform.position;
@@ -98,11 +106,10 @@ public class TurtleEnemy : Enemy
         }
 
         Vector3 destino = Origen + desplazamientosRuta[indiceRuta];
-        float distancia = Vector3.Distance(
-            new Vector3(transform.position.x, Origen.y, transform.position.z),
-            new Vector3(destino.x, Origen.y, destino.z));
+        Vector3 posPlana = new Vector3(transform.position.x, Origen.y, transform.position.z);
+        Vector3 destPlano = new Vector3(destino.x, Origen.y, destino.z);
 
-        if (BloqueoRuta > 0.9f || distancia < 0.30f)
+        if (BloqueoRuta > 0.9f || Vector3.Distance(posPlana, destPlano) < 0.30f)
         {
             indiceRuta = (indiceRuta + 1) % desplazamientosRuta.Length;
             pausaEnPuntoHasta = Time.time + 0.65f;
@@ -122,6 +129,7 @@ public class TurtleEnemy : Enemy
             EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 2.15f, "CAPARAZÓN", new Color(0.58f, 0.85f, 1f), 0.85f);
             return Mathf.Max(1, Mathf.RoundToInt(cantidad * 0.5f));
         }
+
         return cantidad;
     }
 
@@ -151,4 +159,6 @@ public class TurtleEnemy : Enemy
             ataqueVisualHasta = Time.time + 0.65f;
         }
     }
+
+    #endregion
 }

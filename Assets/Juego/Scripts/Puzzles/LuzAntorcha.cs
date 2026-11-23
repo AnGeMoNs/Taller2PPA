@@ -1,15 +1,21 @@
 using UnityEngine;
 
-// Simula el parpadeo suave de las luces de antorcha en cada sala
+// Parpadeo suave de luz para las antorchas y lamparas de las salas
 [RequireComponent(typeof(Light))]
 public class LuzAntorcha : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     [SerializeField] private float variacion = 0.22f;
     [SerializeField] private float velocidad = 4.5f;
 
     private Light luz;
     private float intensidadBase;
     private float semilla;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
@@ -23,4 +29,6 @@ public class LuzAntorcha : MonoBehaviour
         float ruido = Mathf.PerlinNoise(semilla, Time.time * velocidad) * 2f - 1f;
         luz.intensity = Mathf.Max(0.4f, intensidadBase + ruido * variacion);
     }
+
+    #endregion
 }

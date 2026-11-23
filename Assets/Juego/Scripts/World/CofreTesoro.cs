@@ -1,11 +1,14 @@
 using UnityEngine;
 
-// Cofre del tesoro interactuable con animacion de apertura, luz dorada y recompensas persistentes
+// Cofre interactuable que entrega rupias y pociones y guarda su estado por perfil
 public class CofreTesoro : MonoBehaviour, IInteractuable
 {
+    #region CLASS_VARIABLES
+
     private static Material materialMadera;
     private static Material materialOro;
 
+    [Header("Recompensa")]
     [SerializeField] private string idCofre;
     [SerializeField] private int recompensaRupias = 25;
     [SerializeField] private int recompensaPociones = 1;
@@ -20,12 +23,34 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
     public bool Disponible => !abierto && gameObject.activeInHierarchy;
     public string TextoInteraccion => "Abrir cofre del tesoro";
 
+    #endregion
+
+    #region UNITY_METHODS
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void LimpiarEstaticos()
     {
         materialMadera = null;
         materialOro = null;
     }
+
+    private void Update()
+    {
+        if (abierto && tapa != null && anguloTapa > -88f)
+        {
+            anguloTapa = Mathf.MoveTowards(anguloTapa, -88f, 210f * Time.deltaTime);
+            tapa.localRotation = Quaternion.Euler(anguloTapa, 0f, 0f);
+        }
+
+        if (!abierto && luzTesoro != null)
+        {
+            luzTesoro.intensity = 1.35f + Mathf.Sin(Time.time * 3.2f) * 0.35f;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
 
     public void ConfigurarExistente(string id, int rupias, int pociones)
     {
@@ -47,13 +72,11 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
         col.center = new Vector3(0f, 0.36f, 0f);
         col.size = new Vector3(0.95f, 0.72f, 0.62f);
 
-        // Base de madera y ribetes dorados
         CrearParte(raiz.transform, "Base", new Vector3(0f, 0.24f, 0f), new Vector3(0.88f, 0.48f, 0.56f), materialMadera);
         CrearParte(raiz.transform, "Banda_Izq", new Vector3(-0.34f, 0.24f, 0f), new Vector3(0.08f, 0.50f, 0.59f), materialOro);
         CrearParte(raiz.transform, "Banda_Der", new Vector3(0.34f, 0.24f, 0f), new Vector3(0.08f, 0.50f, 0.59f), materialOro);
         CrearParte(raiz.transform, "Cerradura", new Vector3(0f, 0.38f, 0.29f), new Vector3(0.14f, 0.16f, 0.05f), materialOro);
 
-        // Pivote de tapa abatible
         GameObject pivote = new GameObject("Pivote_Tapa");
         pivote.transform.SetParent(raiz.transform, false);
         pivote.transform.localPosition = new Vector3(0f, 0.48f, -0.28f);
@@ -92,6 +115,7 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
         cubo.name = nombre;
         Collider c = cubo.GetComponent<Collider>();
         if (c != null) Destroy(c);
+
         cubo.transform.SetParent(padre, false);
         cubo.transform.localPosition = localPos;
         cubo.transform.localScale = escala;
@@ -100,10 +124,13 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
 
     private void AgregarLuz()
     {
-        if (luzTesoro != null) return;
+        if (luzTesoro != null)
+            return;
+
         GameObject nodoLuz = new GameObject("Luz_Cofre");
         nodoLuz.transform.SetParent(transform, false);
         nodoLuz.transform.localPosition = Vector3.up * 0.85f;
+
         luzTesoro = nodoLuz.AddComponent<Light>();
         luzTesoro.type = LightType.Point;
         luzTesoro.color = new Color(1f, 0.84f, 0.28f);
@@ -123,32 +150,26 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
         }
     }
 
-    private void Update()
-    {
-        if (abierto && tapa != null && anguloTapa > -88f)
-        {
-            anguloTapa = Mathf.MoveTowards(anguloTapa, -88f, 210f * Time.deltaTime);
-            tapa.localRotation = Quaternion.Euler(anguloTapa, 0f, 0f);
-        }
-
-        if (!abierto && luzTesoro != null)
-        {
-            luzTesoro.intensity = 1.35f + Mathf.Sin(Time.time * 3.2f) * 0.35f;
-        }
-    }
-
     public void Interactuar(VidaJugador jugador, InventarioJugador inventario, HUDManager hud)
     {
-        if (abierto) return;
-        abierto = true;
-        if (luzTesoro != null) luzTesoro.enabled = false;
+        if (abierto)
+            return;
 
-        inventario?.MarcarCofreAbierto(idCofre);
+        abierto = true;
+        if (luzTesoro != null)
+        {
+            luzTesoro.enabled = false;
+        }
+
+        if (inventario != null)
+        {
+            inventario.MarcarCofreAbierto(idCofre);
+        }
 
         string resumen = "";
         if (recompensaRupias > 0)
         {
-            inventario?.AgregarRupias(recompensaRupias);
+            if (inventario != null) inventario.AgregarRupias(recompensaRupias);
             resumen = "+" + recompensaRupias + " Rupias";
         }
 
@@ -168,9 +189,12 @@ public class CofreTesoro : MonoBehaviour, IInteractuable
 
         EfectosVisuales.RecogerObjeto(transform.position + Vector3.up * 0.7f, new Color(1f, 0.86f, 0.25f));
         EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 1.2f, resumen, new Color(1f, 0.88f, 0.32f), 1.05f);
-        AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Cofre, 0.8f);
+        AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.Cofre, 0.8f);
         CamaraTerceraPersona.Sacudir(0.05f, 0.12f);
-        hud?.Aviso("Cofre abierto: " + resumen);
-        GameManager.Instance?.Guardar(false);
+
+        if (hud != null) hud.Aviso("Cofre abierto: " + resumen);
+        if (GameManager.Instance != null) GameManager.Instance.Guardar(false);
     }
+
+    #endregion
 }

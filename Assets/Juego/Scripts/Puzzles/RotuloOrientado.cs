@@ -1,9 +1,15 @@
 using UnityEngine;
 
-// Orienta los letreros de texto en el mundo para que siempre miren hacia la camara
+// Mantiene los letreros 3D orientados hacia la camara principal
 public class RotuloOrientado : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     private Camera camaraPrincipal;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Start()
     {
@@ -12,10 +18,15 @@ public class RotuloOrientado : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (camaraPrincipal == null) camaraPrincipal = Camera.main;
+        if (camaraPrincipal == null)
+        {
+            camaraPrincipal = Camera.main;
+        }
         if (camaraPrincipal != null)
         {
             transform.rotation = camaraPrincipal.transform.rotation;
         }
     }
+
+    #endregion
 }

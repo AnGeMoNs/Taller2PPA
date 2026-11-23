@@ -1,11 +1,16 @@
 using UnityEngine;
 
-// Anima el brazo giratorio, el cristal y la luz de cada palanca del puzzle de secuencia
+// Anima el brazo, cristal y luz de cada palanca del puzzle de secuencia
 public class PalancaAnimada : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
+    [Header("Referencias")]
     [SerializeField] private Transform brazo;
     [SerializeField] private Renderer cristal;
     [SerializeField] private Light luz;
+
+    [Header("Angulos")]
     [SerializeField] private float anguloReposo = -32f;
     [SerializeField] private float anguloActivada = 38f;
 
@@ -19,30 +24,14 @@ public class PalancaAnimada : MonoBehaviour
     private MaterialPropertyBlock bloque;
     private Color ultimoColor = Color.clear;
 
-    public void ConfigurarVisual(Transform pivoteBrazo, Renderer renderCristal, Light luzCristal)
-    {
-        brazo = pivoteBrazo;
-        cristal = renderCristal;
-        luz = luzCristal;
-    }
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
         bloque = new MaterialPropertyBlock();
         anguloActual = anguloReposo;
-        AplicarVisual(true);
-    }
-
-    public void EstablecerEstado(bool activa)
-    {
-        activada = activa;
-        AplicarVisual(false);
-    }
-
-    public void DestelloError()
-    {
-        activada = false;
-        flashErrorHasta = Time.time + 0.55f;
         AplicarVisual(true);
     }
 
@@ -58,6 +47,30 @@ public class PalancaAnimada : MonoBehaviour
         AplicarVisual(false);
     }
 
+    #endregion
+
+    #region CLASS_METHODS
+
+    public void ConfigurarVisual(Transform pivoteBrazo, Renderer renderCristal, Light luzCristal)
+    {
+        brazo = pivoteBrazo;
+        cristal = renderCristal;
+        luz = luzCristal;
+    }
+
+    public void EstablecerEstado(bool activa)
+    {
+        activada = activa;
+        AplicarVisual(false);
+    }
+
+    public void DestelloError()
+    {
+        activada = false;
+        flashErrorHasta = Time.time + 0.55f;
+        AplicarVisual(true);
+    }
+
     private void AplicarVisual(bool forzar)
     {
         bool enError = Time.time < flashErrorHasta;
@@ -65,7 +78,9 @@ public class PalancaAnimada : MonoBehaviour
             ? new Color(0.95f, 0.16f, 0.12f)
             : (activada ? new Color(0.18f, 0.90f, 0.42f) : new Color(0.75f, 0.52f, 0.18f));
 
-        if (!forzar && color == ultimoColor) return;
+        if (!forzar && color == ultimoColor)
+            return;
+
         ultimoColor = color;
 
         if (cristal != null)
@@ -84,4 +99,6 @@ public class PalancaAnimada : MonoBehaviour
             luz.intensity = enError ? 2.6f : (activada ? 2.1f : 0.85f);
         }
     }
+
+    #endregion
 }

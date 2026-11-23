@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Clona y activa los enemigos de la oleada final (incluyendo un Capitan Esqueleto Elite) y reporta su progreso
+// Clona y activa los 5 enemigos de la oleada final al reclamar la reliquia
 public sealed class OleadaFinal
 {
+    #region CLASS_VARIABLES
+
     private readonly GameManager game;
     private readonly Transform contenedor;
     private readonly List<GameObject> plantillas = new List<GameObject>();
@@ -75,6 +77,10 @@ public sealed class OleadaFinal
         }
     }
 
+    #endregion
+
+    #region CLASS_METHODS
+
     public OleadaFinal(Transform parent, GameManager manager)
     {
         game = manager;
@@ -90,11 +96,21 @@ public sealed class OleadaFinal
         SlimeEnemy slime = null;
         TurtleEnemy tortuga = null;
 
-        foreach (Enemy enemigo in existentes)
+        for (int i = 0; i < existentes.Length; i++)
         {
-            if (enemigo is SkeletonEnemy s && (esqueleto == null || s.Id == "Esqueleto_guardian_final")) esqueleto = s;
-            if (enemigo is SlimeEnemy l && (slime == null || l.Id == "Slime_guardian_final")) slime = l;
-            if (enemigo is TurtleEnemy t) tortuga = t;
+            Enemy enemigo = existentes[i];
+            if (enemigo is SkeletonEnemy s && (esqueleto == null || s.Id == "Esqueleto_guardian_final"))
+            {
+                esqueleto = s;
+            }
+            if (enemigo is SlimeEnemy l && (slime == null || l.Id == "Slime_guardian_final"))
+            {
+                slime = l;
+            }
+            if (enemigo is TurtleEnemy t)
+            {
+                tortuga = t;
+            }
         }
 
         if (esqueleto == null || slime == null || tortuga == null)
@@ -114,21 +130,25 @@ public sealed class OleadaFinal
 
     public void Activar()
     {
-        if (activada || !Disponible) return;
+        if (activada || !Disponible)
+            return;
+
         activada = true;
         enemigosInvocados.Clear();
 
         for (int i = 0; i < IdsOleada.Length; i++)
         {
-            if (game.EnemigoEliminado(IdsOleada[i])) continue;
+            if (game.EnemigoEliminado(IdsOleada[i]))
+                continue;
 
             GameObject nuevo = Object.Instantiate(plantillas[i], PuntosAparicion[i], Quaternion.identity, contenedor);
             nuevo.name = IdsOleada[i];
             nuevo.transform.localScale = Vector3.one;
+
             Enemy enemigo = nuevo.GetComponent<Enemy>();
             nuevo.SetActive(true);
 
-            // El primer esqueleto lidera la oleada como Capitan Esqueleto Elite
+            // El primer esqueleto aparece como lider elite de la oleada
             if (i == 0 && enemigo != null)
             {
                 enemigo.ConfigurarElite("Capitán Esqueleto", 1.65f, 1.25f, 1.22f);
@@ -145,4 +165,6 @@ public sealed class OleadaFinal
 
         Physics.SyncTransforms();
     }
+
+    #endregion
 }

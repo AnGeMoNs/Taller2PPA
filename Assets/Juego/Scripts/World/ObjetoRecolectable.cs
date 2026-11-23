@@ -9,9 +9,11 @@ public enum TipoRecolectable
     Pocion
 }
 
-// Botin fisico coleccionable con animacion de salto, atraccion magnetica y efectos al recoger
+// Botin fisico con salto inicial, flotacion y atraccion al jugador
 public class ObjetoRecolectable : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     private static Material materialBase;
 
     private TipoRecolectable tipo;
@@ -24,11 +26,81 @@ public class ObjetoRecolectable : MonoBehaviour
     private InventarioJugador inventario;
     private Color colorBrillo;
 
+    #endregion
+
+    #region UNITY_METHODS
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void LimpiarEstaticos()
     {
         materialBase = null;
     }
+
+    private void Update()
+    {
+        if (GameManager.Instance != null && !GameManager.Instance.EnJuego)
+            return;
+
+        tiempoVida += Time.deltaTime;
+        if (tiempoVida > 45f)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        if (!aterrizado)
+        {
+            velocidadSalto.y -= 13.5f * Time.deltaTime;
+            Vector3 siguiente = transform.position + velocidadSalto * Time.deltaTime;
+            if (siguiente.y <= alturaBase)
+            {
+                siguiente.y = alturaBase;
+                aterrizado = true;
+            }
+            transform.position = siguiente;
+        }
+        else
+        {
+            Vector3 p = transform.position;
+            p.y = alturaBase + Mathf.Sin(Time.time * 3.8f + fase) * 0.08f;
+            transform.position = p;
+        }
+
+        transform.Rotate(0f, 115f * Time.deltaTime, 0f, Space.World);
+
+        if (tiempoVida < 0.25f)
+            return;
+
+        if (jugador == null)
+        {
+            jugador = FindFirstObjectByType<VidaJugador>();
+            if (jugador != null)
+            {
+                inventario = jugador.GetComponent<InventarioJugador>();
+            }
+        }
+
+        if (jugador == null || jugador.Muerto)
+            return;
+
+        Vector3 objetivo = jugador.transform.position + Vector3.up * 0.85f;
+        Vector3 delta = objetivo - transform.position;
+        float dist = delta.magnitude;
+
+        if (dist < 2.6f)
+        {
+            transform.position += delta.normalized * (Mathf.Lerp(9.5f, 3.8f, dist / 2.6f) * Time.deltaTime);
+        }
+
+        if (dist < 0.72f)
+        {
+            Recoger();
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
 
     public static void SoltarBotin(Vector3 origen, bool esElite, float probabilidadCorazon = 0.45f)
     {
@@ -117,6 +189,7 @@ public class ObjetoRecolectable : MonoBehaviour
         GameObject pieza = GameObject.CreatePrimitive(primitiva);
         Collider col = pieza.GetComponent<Collider>();
         if (col != null) Destroy(col);
+
         pieza.transform.SetParent(transform, false);
         pieza.transform.localPosition = offset;
         pieza.transform.localScale = escala;
@@ -125,65 +198,11 @@ public class ObjetoRecolectable : MonoBehaviour
         Renderer r = pieza.GetComponent<Renderer>();
         r.sharedMaterial = materialBase;
         r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
         MaterialPropertyBlock bloque = new MaterialPropertyBlock();
         bloque.SetColor("_Color", color);
         bloque.SetColor("_BaseColor", color);
         r.SetPropertyBlock(bloque);
-    }
-
-    private void Update()
-    {
-        if (GameManager.Instance != null && !GameManager.Instance.EnJuego) return;
-
-        tiempoVida += Time.deltaTime;
-        if (tiempoVida > 45f)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        if (!aterrizado)
-        {
-            velocidadSalto.y -= 13.5f * Time.deltaTime;
-            Vector3 siguiente = transform.position + velocidadSalto * Time.deltaTime;
-            if (siguiente.y <= alturaBase)
-            {
-                siguiente.y = alturaBase;
-                aterrizado = true;
-            }
-            transform.position = siguiente;
-        }
-        else
-        {
-            Vector3 p = transform.position;
-            p.y = alturaBase + Mathf.Sin(Time.time * 3.8f + fase) * 0.08f;
-            transform.position = p;
-        }
-
-        transform.Rotate(0f, 115f * Time.deltaTime, 0f, Space.World);
-
-        if (tiempoVida < 0.25f) return;
-
-        if (jugador == null)
-        {
-            jugador = FindFirstObjectByType<VidaJugador>();
-            if (jugador != null) inventario = jugador.GetComponent<InventarioJugador>();
-        }
-        if (jugador == null || jugador.Muerto) return;
-
-        Vector3 objetivo = jugador.transform.position + Vector3.up * 0.85f;
-        Vector3 delta = objetivo - transform.position;
-        float dist = delta.magnitude;
-
-        if (dist < 2.6f)
-        {
-            transform.position += delta.normalized * (Mathf.Lerp(9.5f, 3.8f, dist / 2.6f) * Time.deltaTime);
-        }
-
-        if (dist < 0.72f)
-        {
-            Recoger();
-        }
     }
 
     private void Recoger()
@@ -192,7 +211,7 @@ public class ObjetoRecolectable : MonoBehaviour
         {
             case TipoRecolectable.Corazon:
                 jugador.Curar(25, true);
-                AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Curacion, 0.6f);
+                AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.Curacion, 0.6f);
                 break;
 
             case TipoRecolectable.Pocion:
@@ -204,7 +223,7 @@ public class ObjetoRecolectable : MonoBehaviour
                 else
                 {
                     jugador.Curar(35, true);
-                    AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Curacion, 0.65f);
+                    AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.Curacion, 0.65f);
                 }
                 break;
 
@@ -227,8 +246,10 @@ public class ObjetoRecolectable : MonoBehaviour
 
     private void EntregarRupias(int valor)
     {
-        inventario?.AgregarRupias(valor);
+        if (inventario != null) inventario.AgregarRupias(valor);
         EfectosVisuales.TextoFlotante(transform.position + Vector3.up * 0.5f, "+" + valor + " RUPIAS", colorBrillo, 0.92f);
-        AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Rupia, 0.55f);
+        AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.Rupia, 0.55f);
     }
+
+    #endregion
 }

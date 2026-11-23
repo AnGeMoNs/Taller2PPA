@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Sistema de fijado de objetivo estilo Z-Targeting con indicador 3D sobre el enemigo
+// Fijado de objetivo tipo Z-Targeting con indicador 3D sobre el enemigo
 public class SistemaFijadoObjetivo : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
+    [Header("Distancias")]
     [SerializeField] private float rangoFijado = 11.5f;
     [SerializeField] private float rangoPerdida = 15.0f;
 
@@ -16,7 +19,12 @@ public class SistemaFijadoObjetivo : MonoBehaviour
 
     public Enemy ObjetivoActual => objetivoActual != null && !objetivoActual.Muerto && objetivoActual.gameObject.activeInHierarchy ? objetivoActual : null;
     public bool TieneObjetivo => ObjetivoActual != null;
+
     public event Action<Enemy> ObjetivoCambiado;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
@@ -27,14 +35,23 @@ public class SistemaFijadoObjetivo : MonoBehaviour
     {
         if (GameManager.Instance == null || !GameManager.Instance.EnJuego)
         {
-            if (indicador != null && indicador.activeSelf) indicador.SetActive(false);
+            if (indicador != null && indicador.activeSelf)
+            {
+                indicador.SetActive(false);
+            }
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.Tab))
         {
-            if (TieneObjetivo) LiberarObjetivo();
-            else BuscarObjetivoMasCercano();
+            if (TieneObjetivo)
+            {
+                LiberarObjetivo();
+            }
+            else
+            {
+                BuscarObjetivoMasCercano();
+            }
         }
         else if (TieneObjetivo && (Input.GetKeyDown(KeyCode.V) || Input.GetMouseButtonDown(2)))
         {
@@ -45,19 +62,35 @@ public class SistemaFijadoObjetivo : MonoBehaviour
         ActualizarIndicador();
     }
 
+    private void OnDestroy()
+    {
+        if (indicador != null)
+        {
+            Destroy(indicador);
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
     private void ValidarObjetivoActual()
     {
-        if (objetivoActual == null) return;
+        if (objetivoActual == null)
+            return;
+
         float dist = Vector3.Distance(transform.position, objetivoActual.transform.position);
         if (objetivoActual.Muerto || !objetivoActual.gameObject.activeInHierarchy || dist > rangoPerdida)
         {
             Enemy anterior = objetivoActual;
             objetivoActual = null;
-            // Si murio el objetivo actual, intenta fijar automaticamente al siguiente enemigo cercano
+
+            // Si murio el enemigo fijado, busca pasar automaticamente al siguiente cercano
             if (anterior != null && anterior.Muerto && BuscarObjetivoMasCercano(false))
             {
                 return;
             }
+
             ObjetivoCambiado?.Invoke(null);
         }
     }
@@ -65,7 +98,8 @@ public class SistemaFijadoObjetivo : MonoBehaviour
     private bool BuscarObjetivoMasCercano(bool reproducirSonido = true)
     {
         RecolectarCandidatos();
-        if (candidatos.Count == 0) return false;
+        if (candidatos.Count == 0)
+            return false;
 
         EstablecerObjetivo(candidatos[0], reproducirSonido);
         return true;
@@ -74,7 +108,8 @@ public class SistemaFijadoObjetivo : MonoBehaviour
     private void CambiarSiguienteObjetivo()
     {
         RecolectarCandidatos();
-        if (candidatos.Count <= 1) return;
+        if (candidatos.Count <= 1)
+            return;
 
         int indice = candidatos.IndexOf(objetivoActual);
         int siguiente = (indice + 1) % candidatos.Count;
@@ -84,27 +119,30 @@ public class SistemaFijadoObjetivo : MonoBehaviour
     private void RecolectarCandidatos()
     {
         candidatos.Clear();
+
         Camera cam = Camera.main;
         Vector3 frenteCam = cam != null ? cam.transform.forward : transform.forward;
         frenteCam.y = 0f;
-        if (frenteCam.sqrMagnitude > 0.001f) frenteCam.Normalize();
+        if (frenteCam.sqrMagnitude > 0.001f)
+        {
+            frenteCam.Normalize();
+        }
 
         Enemy[] todos = FindObjectsByType<Enemy>(FindObjectsSortMode.None);
-        foreach (Enemy e in todos)
+        for (int i = 0; i < todos.Length; i++)
         {
-            if (e == null || e.Muerto || !e.gameObject.activeInHierarchy) continue;
+            Enemy e = todos[i];
+            if (e == null || e.Muerto || !e.gameObject.activeInHierarchy)
+                continue;
+
             float d = Vector3.Distance(transform.position, e.transform.position);
-            if (d > rangoFijado) continue;
-            if (!TieneLineaDeVista(e)) continue;
+            if (d > rangoFijado || !TieneLineaDeVista(e))
+                continue;
+
             candidatos.Add(e);
         }
 
-        candidatos.Sort((a, b) =>
-        {
-            float scoreA = CalcularPuntuacion(a, frenteCam);
-            float scoreB = CalcularPuntuacion(b, frenteCam);
-            return scoreA.CompareTo(scoreB);
-        });
+        candidatos.Sort((a, b) => CalcularPuntuacion(a, frenteCam).CompareTo(CalcularPuntuacion(b, frenteCam)));
     }
 
     private float CalcularPuntuacion(Enemy enemigo, Vector3 frenteCam)
@@ -121,7 +159,9 @@ public class SistemaFijadoObjetivo : MonoBehaviour
         Vector3 origen = transform.position + Vector3.up * 1.1f;
         Vector3 destino = enemigo.transform.position + Vector3.up * 0.8f;
         Vector3 dir = destino - origen;
-        if (dir.sqrMagnitude < 0.01f) return true;
+
+        if (dir.sqrMagnitude < 0.01f)
+            return true;
 
         int hits = Physics.RaycastNonAlloc(origen, dir.normalized, bufferLineaVista, dir.magnitude, ~0, QueryTriggerInteraction.Ignore);
         for (int i = 0; i < hits; i++)
@@ -132,6 +172,7 @@ public class SistemaFijadoObjetivo : MonoBehaviour
                 return false;
             }
         }
+
         return true;
     }
 
@@ -140,14 +181,16 @@ public class SistemaFijadoObjetivo : MonoBehaviour
         objetivoActual = nuevo;
         if (reproducirSonido)
         {
-            AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.FijarObjetivo, 0.55f);
+            AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.FijarObjetivo, 0.55f);
         }
         ObjetivoCambiado?.Invoke(objetivoActual);
     }
 
     public void LiberarObjetivo()
     {
-        if (objetivoActual == null) return;
+        if (objetivoActual == null)
+            return;
+
         objetivoActual = null;
         ObjetivoCambiado?.Invoke(null);
     }
@@ -155,10 +198,16 @@ public class SistemaFijadoObjetivo : MonoBehaviour
     private void CrearIndicador3D()
     {
         indicador = new GameObject("Indicador_Fijado");
+
         romboInterno = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
         romboInterno.name = "Rombo";
+
         Collider col = romboInterno.GetComponent<Collider>();
-        if (col != null) Destroy(col);
+        if (col != null)
+        {
+            Destroy(col);
+        }
+
         romboInterno.SetParent(indicador.transform, false);
         romboInterno.localScale = new Vector3(0.22f, 0.22f, 0.22f);
         romboInterno.localRotation = Quaternion.Euler(45f, 0f, 45f);
@@ -181,26 +230,33 @@ public class SistemaFijadoObjetivo : MonoBehaviour
 
     private void ActualizarIndicador()
     {
-        if (indicador == null) return;
+        if (indicador == null)
+            return;
+
         Enemy obj = ObjetivoActual;
         if (obj == null)
         {
-            if (indicador.activeSelf) indicador.SetActive(false);
+            if (indicador.activeSelf)
+            {
+                indicador.SetActive(false);
+            }
             return;
         }
 
-        if (!indicador.activeSelf) indicador.SetActive(true);
+        if (!indicador.activeSelf)
+        {
+            indicador.SetActive(true);
+        }
+
         CapsuleCollider cap = obj.GetComponent<CapsuleCollider>();
         float altura = (cap != null ? cap.height : 1.5f) + 0.72f + Mathf.Sin(Time.time * 5f) * 0.08f;
         indicador.transform.position = obj.transform.position + Vector3.up * altura;
+
         if (romboInterno != null)
         {
             romboInterno.Rotate(0f, 160f * Time.deltaTime, 0f, Space.World);
         }
     }
 
-    private void OnDestroy()
-    {
-        if (indicador != null) Destroy(indicador);
-    }
+    #endregion
 }

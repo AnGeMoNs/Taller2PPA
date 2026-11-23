@@ -1,8 +1,10 @@
 using UnityEngine;
 
-// Permite destruir barriles y anforas de la mazmorra con la espada para obtener botin
+// Permite romper barriles y anforas con la espada para soltar botin
 public class ObjetoRompible : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     [SerializeField] private int golpesParaRomper = 1;
     [SerializeField] private Color colorEscombros = new Color(0.62f, 0.42f, 0.24f);
 
@@ -13,18 +15,40 @@ public class ObjetoRompible : MonoBehaviour
 
     public bool Roto => roto;
 
-    public void Configurar(int resistencia, Color colorParticulas)
-    {
-        golpesParaRomper = Mathf.Max(1, resistencia);
-        golpesRestantes = golpesParaRomper;
-        colorEscombros = colorParticulas;
-    }
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
         golpesRestantes = Mathf.Max(1, golpesParaRomper);
         posicionInicial = transform.position;
         AsegurarColision();
+    }
+
+    private void Update()
+    {
+        if (tiempoSacudida <= 0f)
+            return;
+
+        tiempoSacudida = Mathf.Max(0f, tiempoSacudida - Time.deltaTime);
+        transform.position = posicionInicial + Random.insideUnitSphere * (0.045f * (tiempoSacudida / 0.14f));
+
+        if (tiempoSacudida <= 0f)
+        {
+            transform.position = posicionInicial;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
+    public void Configurar(int resistencia, Color colorParticulas)
+    {
+        golpesParaRomper = Mathf.Max(1, resistencia);
+        golpesRestantes = golpesParaRomper;
+        colorEscombros = colorParticulas;
     }
 
     private void AsegurarColision()
@@ -47,38 +71,29 @@ public class ObjetoRompible : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        if (tiempoSacudida > 0f)
-        {
-            tiempoSacudida = Mathf.Max(0f, tiempoSacudida - Time.deltaTime);
-            transform.position = posicionInicial + Random.insideUnitSphere * (0.045f * (tiempoSacudida / 0.14f));
-            if (tiempoSacudida <= 0f)
-            {
-                transform.position = posicionInicial;
-            }
-        }
-    }
-
     public void RecibirGolpe(Vector3 origenGolpe, InventarioJugador inventario)
     {
-        if (roto) return;
+        if (roto)
+            return;
 
         golpesRestantes--;
         if (golpesRestantes > 0)
         {
             tiempoSacudida = 0.14f;
             EfectosVisuales.ChispasGolpe(transform.position + Vector3.up * 0.45f, false, false);
-            AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.RomperObjeto, 0.45f, transform.position);
+            AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.RomperObjeto, 0.45f, transform.position);
             return;
         }
 
         roto = true;
         EfectosVisuales.EscombrosRompible(transform.position, colorEscombros);
-        AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.RomperObjeto, 0.72f, transform.position);
-        inventario?.RegistrarObjetoRoto();
+        AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.RomperObjeto, 0.72f, transform.position);
 
-        // Suelta corazones, rupias o una pocion rara
+        if (inventario != null)
+        {
+            inventario.RegistrarObjetoRoto();
+        }
+
         float azar = Random.value;
         if (azar < 0.38f)
         {
@@ -96,4 +111,6 @@ public class ObjetoRompible : MonoBehaviour
 
         gameObject.SetActive(false);
     }
+
+    #endregion
 }

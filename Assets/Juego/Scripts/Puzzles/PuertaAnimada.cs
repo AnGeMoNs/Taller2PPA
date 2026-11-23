@@ -1,8 +1,10 @@
 using UnityEngine;
 
-// Eleva suavemente la reja de la camara final cuando se obtienen todos los sellos
+// Levanta la reja de la camara final cuando se juntan los cuatro sellos
 public class PuertaAnimada : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     [SerializeField] private float alturaApertura = 3.35f;
     [SerializeField] private float velocidad = 2.6f;
 
@@ -13,6 +15,10 @@ public class PuertaAnimada : MonoBehaviour
 
     public bool Abierta => abierta;
 
+    #endregion
+
+    #region UNITY_METHODS
+
     private void Awake()
     {
         posicionCerrada = transform.position;
@@ -20,13 +26,36 @@ public class PuertaAnimada : MonoBehaviour
         inicializada = true;
     }
 
+    private void Update()
+    {
+        if (!inicializada)
+            return;
+
+        Vector3 objetivo = abierta ? posicionCerrada + Vector3.up * alturaApertura : posicionCerrada;
+        if ((transform.position - objetivo).sqrMagnitude > 0.0001f)
+        {
+            transform.position = Vector3.MoveTowards(transform.position, objetivo, velocidad * Time.deltaTime);
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
     public void EstablecerAbierta(bool abrir, bool instantaneo = false)
     {
-        if (!inicializada) Awake();
+        if (!inicializada)
+        {
+            Awake();
+        }
+
         bool huboCambio = abierta != abrir;
         abierta = abrir;
 
-        if (colision != null) colision.enabled = !abierta;
+        if (colision != null)
+        {
+            colision.enabled = !abierta;
+        }
 
         if (instantaneo)
         {
@@ -38,13 +67,5 @@ public class PuertaAnimada : MonoBehaviour
         }
     }
 
-    private void Update()
-    {
-        if (!inicializada) return;
-        Vector3 objetivo = abierta ? posicionCerrada + Vector3.up * alturaApertura : posicionCerrada;
-        if ((transform.position - objetivo).sqrMagnitude > 0.0001f)
-        {
-            transform.position = Vector3.MoveTowards(transform.position, objetivo, velocidad * Time.deltaTime);
-        }
-    }
+    #endregion
 }

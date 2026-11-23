@@ -2,26 +2,29 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Estructura serializable que almacena el estado completo de un perfil en formato JSON
+// Datos serializables para guardar y cargar cada perfil en JSON
 [Serializable]
 public class DatosPartida
 {
+    public string nombre;
+    public Vector3 posicion;
+    public int vida = 100;
+
     public int secuencia;
     public int controlTrampas;
     public int altarMask;
     public bool reliquiaRecuperada;
     public bool oleadaCompletada;
     public int versionFinal;
+
     public Vector3[] cajas;
     public Quaternion[] rotacionesCajas;
-    public string nombre;
-    public Vector3 posicion;
-    public int vida = 100;
+
     public List<string> salasResueltas = new List<string>();
     public List<string> enemigosMuertos = new List<string>();
     public List<string> objetos = new List<string>();
 
-    // Campos adicionales de inventario, exploracion y estadisticas (compatibles con guardados previos)
+    // Inventario, cofres y estadisticas
     public bool pocionesInicializadas;
     public int pociones = 1;
     public int rupias;

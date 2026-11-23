@@ -4,11 +4,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public enum GameStates { GameStart, InGame, Paused, GameOver, Victory }
+public enum GameStates
+{
+    GameStart,
+    InGame,
+    Paused,
+    GameOver,
+    Victory
+}
 
-// Controla el flujo general de la partida, sistemas del jugador, contenido extra y guardado/carga
+// Manager principal de la partida: estados, carga/guardado y referencias globales
 public class GameManager : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     public static GameManager Instance { get; private set; }
     public GameStates Estado { get; private set; }
     public bool EnJuego => Estado == GameStates.InGame;
@@ -24,6 +33,7 @@ public class GameManager : MonoBehaviour
     private HUDManager hud;
     private MazmorraPuzzles puzzles;
     private MejorasMazmorra mejoras;
+
     private Vector3 posicionInicio;
     private readonly HashSet<string> enemigosMuertos = new HashSet<string>();
     private readonly List<Enemy> enemigosSuscritos = new List<Enemy>();
@@ -33,6 +43,10 @@ public class GameManager : MonoBehaviour
     public InventarioJugador Inventario => inventarioJugador;
     public MazmorraPuzzles Puzzles => puzzles;
     public MejorasMazmorra Mejoras => mejoras;
+
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
@@ -56,19 +70,43 @@ public class GameManager : MonoBehaviour
 
         movimientoJugador = vidaJugador.GetComponent<Movimiento3D>();
         combateJugador = vidaJugador.GetComponent<CombateJugador>();
-        inventarioJugador = vidaJugador.GetComponent<InventarioJugador>() ?? vidaJugador.gameObject.AddComponent<InventarioJugador>();
-        fijadoObjetivo = vidaJugador.GetComponent<SistemaFijadoObjetivo>() ?? vidaJugador.gameObject.AddComponent<SistemaFijadoObjetivo>();
+        inventarioJugador = vidaJugador.GetComponent<InventarioJugador>();
+        if (inventarioJugador == null)
+        {
+            inventarioJugador = vidaJugador.gameObject.AddComponent<InventarioJugador>();
+        }
+
+        fijadoObjetivo = vidaJugador.GetComponent<SistemaFijadoObjetivo>();
+        if (fijadoObjetivo == null)
+        {
+            fijadoObjetivo = vidaJugador.gameObject.AddComponent<SistemaFijadoObjetivo>();
+        }
 
         camaraJugador = FindFirstObjectByType<CamaraTerceraPersona>();
         progreso = GetComponent<ProgresoPartida>();
         hud = GetComponent<HUDManager>();
-        mejoras = GetComponent<MejorasMazmorra>() ?? gameObject.AddComponent<MejorasMazmorra>();
-        posicionInicio = vidaJugador.transform.position;
+        mejoras = GetComponent<MejorasMazmorra>();
+        if (mejoras == null)
+        {
+            mejoras = gameObject.AddComponent<MejorasMazmorra>();
+        }
 
+        posicionInicio = vidaJugador.transform.position;
         mejoras.Construir();
 
         puzzles = FindFirstObjectByType<MazmorraPuzzles>();
-        hud.Construir(this, vidaJugador, movimientoJugador, combateJugador, inventarioJugador, fijadoObjetivo, progreso, puzzles, mejoras);
+        hud.Construir(
+            this,
+            vidaJugador,
+            movimientoJugador,
+            combateJugador,
+            inventarioJugador,
+            fijadoObjetivo,
+            progreso,
+            puzzles,
+            mejoras
+        );
+
         vidaJugador.Murio += AlMorirJugador;
 
         if (puzzles != null)
@@ -76,16 +114,18 @@ public class GameManager : MonoBehaviour
             puzzles.Inicializar(this, vidaJugador, progreso, hud, mejoras);
         }
 
-        foreach (Enemy enemigo in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
+        Enemy[] enemigos = FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+        for (int i = 0; i < enemigos.Length; i++)
         {
-            SuscribirEnemigo(enemigo);
+            SuscribirEnemigo(enemigos[i]);
         }
 
-        // Si venimos de cargar o crear un perfil, restauramos los datos guardados
+        // Si se eligio un perfil antes de recargar la escena, se restaura aqui
         if (!string.IsNullOrEmpty(perfilPorCargar))
         {
             string nombre = perfilPorCargar;
             perfilPorCargar = null;
+
             try
             {
                 Restaurar(SaveManager.Cargar(nombre));
@@ -106,12 +146,19 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (esperandoGameOver) return;
+        if (esperandoGameOver)
+            return;
 
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            if (EnJuego) CambiarEstado(GameStates.Paused);
-            else if (Estado == GameStates.Paused) CambiarEstado(GameStates.InGame);
+            if (EnJuego)
+            {
+                CambiarEstado(GameStates.Paused);
+            }
+            else if (Estado == GameStates.Paused)
+            {
+                CambiarEstado(GameStates.InGame);
+            }
         }
 
         if (EnJuego && Input.GetKeyDown(KeyCode.F5))
@@ -119,18 +166,50 @@ public class GameManager : MonoBehaviour
             Guardar();
         }
 
-        // Activa la musica del jefe final al entrar a la camara final si la oleada aun no concluyo
-        if (EnJuego && vidaJugador != null && vidaJugador.transform.position.z > 18.5f && (puzzles == null || !puzzles.FinalCompletado))
+        // Cambia a musica de jefe cuando el jugador entra a la sala del altar
+        if (EnJuego && vidaJugador != null && vidaJugador.transform.position.z > 18.5f)
         {
-            AudioManager.ActivarMusicaJefe();
+            if (puzzles == null || !puzzles.FinalCompletado)
+            {
+                AudioManager.ActivarMusicaJefe();
+            }
         }
     }
 
+    private void OnDestroy()
+    {
+        if (vidaJugador != null)
+        {
+            vidaJugador.Murio -= AlMorirJugador;
+        }
+
+        for (int i = 0; i < enemigosSuscritos.Count; i++)
+        {
+            if (enemigosSuscritos[i] != null)
+            {
+                enemigosSuscritos[i].Murio -= RegistrarMuerte;
+            }
+        }
+        enemigosSuscritos.Clear();
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
     private void SuscribirEnemigo(Enemy enemigo)
     {
-        if (enemigo == null) return;
+        if (enemigo == null)
+            return;
+
         enemigo.Murio -= RegistrarMuerte;
         enemigo.Murio += RegistrarMuerte;
+
         if (!enemigosSuscritos.Contains(enemigo))
         {
             enemigosSuscritos.Add(enemigo);
@@ -142,7 +221,10 @@ public class GameManager : MonoBehaviour
         if (enemigo != null)
         {
             enemigosMuertos.Add(enemigo.Id);
-            inventarioJugador?.RegistrarEnemigoDerrotado();
+            if (inventarioJugador != null)
+            {
+                inventarioJugador.RegistrarEnemigoDerrotado();
+            }
         }
 
         if (puzzles != null && puzzles.Oleada != null && puzzles.Oleada.Completa)
@@ -151,11 +233,16 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public bool EnemigoEliminado(string id) => enemigosMuertos.Contains(id);
+    public bool EnemigoEliminado(string id)
+    {
+        return enemigosMuertos.Contains(id);
+    }
 
     public void RegistrarEnemigoNuevo(Enemy enemigo)
     {
-        if (enemigo == null) return;
+        if (enemigo == null)
+            return;
+
         SuscribirEnemigo(enemigo);
         AudioManager.ActivarMusicaJefe();
     }
@@ -163,6 +250,7 @@ public class GameManager : MonoBehaviour
     public void Nueva(string nombre)
     {
         nombre = nombre != null ? nombre.Trim() : "";
+
         if (!SaveManager.NombreValido(nombre))
         {
             hud.Aviso("Usa 1-32 letras, números, guion o guion bajo.");
@@ -177,15 +265,14 @@ public class GameManager : MonoBehaviour
 
         try
         {
-            DatosPartida datosIniciales = new DatosPartida
-            {
-                nombre = nombre,
-                posicion = posicionInicio,
-                vida = vidaJugador.VidaMaxima,
-                pocionesInicializadas = true,
-                pociones = InventarioJugador.PocionesIniciales,
-                ultimaFechaGuardado = DateTime.Now.ToString("dd/MM HH:mm")
-            };
+            DatosPartida datosIniciales = new DatosPartida();
+            datosIniciales.nombre = nombre;
+            datosIniciales.posicion = posicionInicio;
+            datosIniciales.vida = vidaJugador.VidaMaxima;
+            datosIniciales.pocionesInicializadas = true;
+            datosIniciales.pociones = InventarioJugador.PocionesIniciales;
+            datosIniciales.ultimaFechaGuardado = DateTime.Now.ToString("dd/MM HH:mm");
+
             SaveManager.Guardar(datosIniciales);
             Cargar(nombre);
         }
@@ -213,9 +300,12 @@ public class GameManager : MonoBehaviour
     {
         try
         {
-            bool ok = SaveManager.Eliminar(nombre);
-            if (ok) hud.Aviso("Perfil eliminado: " + nombre);
-            return ok;
+            bool borrado = SaveManager.Eliminar(nombre);
+            if (borrado)
+            {
+                hud.Aviso("Perfil eliminado: " + nombre);
+            }
+            return borrado;
         }
         catch (Exception ex)
         {
@@ -230,6 +320,7 @@ public class GameManager : MonoBehaviour
         Rigidbody cuerpo = vidaJugador.GetComponent<Rigidbody>();
         Vector3 posicion = datos.posicion;
 
+        // Deja al personaje al ras del suelo de la mazmorra
         if (Mathf.Abs(posicion.x) < 18f && posicion.z > -18f && posicion.z < 30f)
         {
             posicion.y = 0.04f;
@@ -243,8 +334,15 @@ public class GameManager : MonoBehaviour
         vidaJugador.transform.position = posicion;
 
         progreso.Restaurar(datos.salasResueltas, datos.objetos);
-        inventarioJugador?.Restaurar(datos);
-        mejoras?.SincronizarConInventario(inventarioJugador);
+
+        if (inventarioJugador != null)
+        {
+            inventarioJugador.Restaurar(datos);
+        }
+        if (mejoras != null)
+        {
+            mejoras.SincronizarConInventario(inventarioJugador);
+        }
 
         enemigosMuertos.Clear();
         if (datos.enemigosMuertos != null)
@@ -252,20 +350,26 @@ public class GameManager : MonoBehaviour
             enemigosMuertos.UnionWith(datos.enemigosMuertos);
         }
 
-        foreach (Enemy enemigo in FindObjectsByType<Enemy>(FindObjectsSortMode.None))
+        Enemy[] enemigosEscena = FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+        for (int i = 0; i < enemigosEscena.Length; i++)
         {
-            if (enemigosMuertos.Contains(enemigo.Id))
+            if (enemigosMuertos.Contains(enemigosEscena[i].Id))
             {
-                enemigo.EliminarAlCargar();
+                enemigosEscena[i].EliminarAlCargar();
             }
         }
 
         if (puzzles != null)
         {
             puzzles.Restaurar(datos);
+
+            // Evita quedar atras de la reja si todavia esta cerrada
             if (datos.posicion.z > 18f && !puzzles.EntradaFinalAbierta)
             {
-                if (cuerpo != null) cuerpo.position = posicionInicio;
+                if (cuerpo != null)
+                {
+                    cuerpo.position = posicionInicio;
+                }
                 vidaJugador.transform.position = posicionInicio;
             }
         }
@@ -275,7 +379,6 @@ public class GameManager : MonoBehaviour
         vidaJugador.RestaurarMaxima(potenciado, vidaFinal);
         Physics.SyncTransforms();
 
-        // Sincroniza la musica con precision segun el estado real de la oleada
         bool oleadaVencida = puzzles != null && (puzzles.FinalCompletado || (puzzles.Oleada != null && puzzles.Oleada.Completa));
         if (oleadaVencida)
         {
@@ -287,26 +390,34 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void Guardar() => Guardar(true);
+    public void Guardar()
+    {
+        Guardar(true);
+    }
 
     public void Guardar(bool mostrarAviso)
     {
-        if (string.IsNullOrEmpty(Perfil) || vidaJugador == null || vidaJugador.Muerto) return;
+        if (string.IsNullOrEmpty(Perfil) || vidaJugador == null || vidaJugador.Muerto)
+            return;
 
         try
         {
-            DatosPartida datos = new DatosPartida
-            {
-                nombre = Perfil,
-                posicion = vidaJugador.transform.position,
-                vida = vidaJugador.Vida,
-                salasResueltas = new List<string>(progreso.Salas),
-                objetos = new List<string>(progreso.Objetos),
-                enemigosMuertos = new List<string>(enemigosMuertos)
-            };
+            DatosPartida datos = new DatosPartida();
+            datos.nombre = Perfil;
+            datos.posicion = vidaJugador.transform.position;
+            datos.vida = vidaJugador.Vida;
+            datos.salasResueltas = new List<string>(progreso.Salas);
+            datos.objetos = new List<string>(progreso.Objetos);
+            datos.enemigosMuertos = new List<string>(enemigosMuertos);
 
-            puzzles?.Escribir(datos);
-            inventarioJugador?.Escribir(datos);
+            if (puzzles != null)
+            {
+                puzzles.Escribir(datos);
+            }
+            if (inventarioJugador != null)
+            {
+                inventarioJugador.Escribir(datos);
+            }
 
             SaveManager.Guardar(datos);
 
@@ -353,16 +464,30 @@ public class GameManager : MonoBehaviour
 
     private void AlMorirJugador()
     {
-        if (esperandoGameOver) return;
+        if (esperandoGameOver)
+            return;
+
         esperandoGameOver = true;
-        fijadoObjetivo?.LiberarObjetivo();
-        if (movimientoJugador != null) movimientoJugador.CanMove = false;
-        if (camaraJugador != null) camaraJugador.PermitirControl = false;
+
+        if (fijadoObjetivo != null)
+        {
+            fijadoObjetivo.LiberarObjetivo();
+        }
+        if (movimientoJugador != null)
+        {
+            movimientoJugador.CanMove = false;
+        }
+        if (camaraJugador != null)
+        {
+            camaraJugador.PermitirControl = false;
+        }
+
         StartCoroutine(MostrarGameOverConRetraso());
     }
 
     private IEnumerator MostrarGameOverConRetraso()
     {
+        // Espera un segundo para que se vea la animacion de muerte antes de pausar
         yield return new WaitForSecondsRealtime(1.1f);
         esperandoGameOver = false;
         CambiarEstado(GameStates.GameOver);
@@ -370,15 +495,25 @@ public class GameManager : MonoBehaviour
 
     public void Ganar()
     {
-        fijadoObjetivo?.LiberarObjetivo();
+        if (fijadoObjetivo != null)
+        {
+            fijadoObjetivo.LiberarObjetivo();
+        }
+
         AudioManager.Reproducir("Game_Victory");
         CambiarEstado(GameStates.Victory);
     }
 
     public void Reintentar()
     {
-        if (!string.IsNullOrEmpty(Perfil)) Cargar(Perfil);
-        else VolverMenu();
+        if (!string.IsNullOrEmpty(Perfil))
+        {
+            Cargar(Perfil);
+        }
+        else
+        {
+            VolverMenu();
+        }
     }
 
     public void VolverMenu()
@@ -399,21 +534,5 @@ public class GameManager : MonoBehaviour
         Application.Quit();
     }
 
-    private void OnDestroy()
-    {
-        if (vidaJugador != null)
-        {
-            vidaJugador.Murio -= AlMorirJugador;
-        }
-        for (int i = 0; i < enemigosSuscritos.Count; i++)
-        {
-            if (enemigosSuscritos[i] != null) enemigosSuscritos[i].Murio -= RegistrarMuerte;
-        }
-        enemigosSuscritos.Clear();
-
-        if (Instance == this)
-        {
-            Instance = null;
-        }
-    }
+    #endregion
 }

@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Ajusta la altura visual para modelos Generic y se desactiva en rigs Humanoid
+// Alinea la altura visual en modelos Generic; en Humanoid se desactiva solo
 [DisallowMultipleComponent]
 public class AjusteVisualSuelo : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     [SerializeField] private float frecuencia = 0.12f;
     [SerializeField] private float ajusteMaximo = 1.8f;
 
@@ -17,6 +19,10 @@ public class AjusteVisualSuelo : MonoBehaviour
     private float alturaObjetivo;
     private float siguienteRevision;
 
+    #endregion
+
+    #region UNITY_METHODS
+
     private void Awake()
     {
         modelo = transform.Find("Modelo");
@@ -27,7 +33,6 @@ public class AjusteVisualSuelo : MonoBehaviour
         }
 
         animator = modelo.GetComponentInChildren<Animator>();
-        // En personajes Humanoid los pies ya se alinean con Foot IK y heightFromFeet
         if (animator != null && animator.isHuman)
         {
             enabled = false;
@@ -41,22 +46,30 @@ public class AjusteVisualSuelo : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (modelo == null || mallas == null || mallas.Length == 0) return;
+        if (modelo == null || mallas == null || mallas.Length == 0)
+            return;
 
         if (Time.unscaledTime >= siguienteRevision)
         {
             siguienteRevision = Time.unscaledTime + frecuencia;
             float minimo = float.PositiveInfinity;
 
-            foreach (SkinnedMeshRenderer malla in mallas)
+            for (int m = 0; m < mallas.Length; m++)
             {
-                if (malla == null || malla.sharedMesh == null || !malla.enabled) continue;
+                SkinnedMeshRenderer malla = mallas[m];
+                if (malla == null || malla.sharedMesh == null || !malla.enabled)
+                    continue;
+
                 malla.BakeMesh(mallaTemporal);
                 mallaTemporal.GetVertices(vertices);
+
                 for (int i = 0; i < vertices.Count; i++)
                 {
                     float y = transform.InverseTransformPoint(malla.transform.TransformPoint(vertices[i])).y;
-                    if (y < minimo) minimo = y;
+                    if (y < minimo)
+                    {
+                        minimo = y;
+                    }
                 }
             }
 
@@ -73,6 +86,11 @@ public class AjusteVisualSuelo : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (mallaTemporal != null) Destroy(mallaTemporal);
+        if (mallaTemporal != null)
+        {
+            Destroy(mallaTemporal);
+        }
     }
+
+    #endregion
 }

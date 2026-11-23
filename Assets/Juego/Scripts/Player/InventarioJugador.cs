@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-// Administra pociones de curacion, rupias, cofres abiertos y estadisticas de la aventura
+// Inventario del jugador: pociones, rupias, cofres abiertos y estadisticas de partida
 public class InventarioJugador : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     public const int MaxPociones = 5;
     public const int PocionesIniciales = 1;
     private const float CooldownPocion = 1.0f;
@@ -29,6 +31,10 @@ public class InventarioJugador : MonoBehaviour
     public event Action InventarioCambiado;
     public event Action EstadisticasCambiadas;
 
+    #endregion
+
+    #region UNITY_METHODS
+
     private void Awake()
     {
         vida = GetComponent<VidaJugador>();
@@ -37,7 +43,8 @@ public class InventarioJugador : MonoBehaviour
 
     private void Update()
     {
-        if (GameManager.Instance == null || !GameManager.Instance.EnJuego) return;
+        if (GameManager.Instance == null || !GameManager.Instance.EnJuego)
+            return;
 
         TiempoJugado += Time.deltaTime;
 
@@ -47,9 +54,14 @@ public class InventarioJugador : MonoBehaviour
         }
     }
 
+    #endregion
+
+    #region CLASS_METHODS
+
     public bool UsarPocion()
     {
-        if (vida == null || vida.Muerto || Time.time < siguientePocion) return false;
+        if (vida == null || vida.Muerto || Time.time < siguientePocion)
+            return false;
 
         if (Pociones <= 0)
         {
@@ -66,16 +78,20 @@ public class InventarioJugador : MonoBehaviour
 
         Pociones--;
         siguientePocion = Time.time + CooldownPocion;
+
         int curacion = Mathf.Max(40, Mathf.RoundToInt(vida.VidaMaxima * 0.5f));
         vida.Curar(curacion, true);
-        AudioManager.ReproducirSintetico(AudioManager.SonidoSintetico.Curacion, 0.72f);
+        AudioManager.ReproducirEfecto(AudioManager.EfectoExtra.Curacion, 0.72f);
+
         InventarioCambiado?.Invoke();
         return true;
     }
 
     public bool AgregarPocion(int cantidad = 1)
     {
-        if (cantidad <= 0 || Pociones >= MaxPociones) return false;
+        if (cantidad <= 0 || Pociones >= MaxPociones)
+            return false;
+
         Pociones = Mathf.Min(MaxPociones, Pociones + cantidad);
         InventarioCambiado?.Invoke();
         return true;
@@ -83,36 +99,51 @@ public class InventarioJugador : MonoBehaviour
 
     public void AgregarRupias(int cantidad)
     {
-        if (cantidad <= 0) return;
+        if (cantidad <= 0)
+            return;
+
         Rupias += cantidad;
         InventarioCambiado?.Invoke();
     }
 
     public bool GastarRupias(int cantidad)
     {
-        if (cantidad <= 0) return true;
-        if (Rupias < cantidad) return false;
+        if (cantidad <= 0)
+            return true;
+        if (Rupias < cantidad)
+            return false;
+
         Rupias -= cantidad;
         InventarioCambiado?.Invoke();
         return true;
     }
 
-    public bool CofreAbierto(string id) => !string.IsNullOrEmpty(id) && cofresAbiertos.Contains(id);
+    public bool CofreAbierto(string id)
+    {
+        return !string.IsNullOrEmpty(id) && cofresAbiertos.Contains(id);
+    }
 
     public void MarcarCofreAbierto(string id)
     {
-        if (string.IsNullOrEmpty(id)) return;
+        if (string.IsNullOrEmpty(id))
+            return;
+
         if (cofresAbiertos.Add(id))
         {
             InventarioCambiado?.Invoke();
         }
     }
 
-    public bool SalaDescubierta(string id) => !string.IsNullOrEmpty(id) && salasDescubiertas.Contains(id);
+    public bool SalaDescubierta(string id)
+    {
+        return !string.IsNullOrEmpty(id) && salasDescubiertas.Contains(id);
+    }
 
     public bool RegistrarSalaDescubierta(string id)
     {
-        if (string.IsNullOrEmpty(id)) return false;
+        if (string.IsNullOrEmpty(id))
+            return false;
+
         return salasDescubiertas.Add(id);
     }
 
@@ -139,7 +170,9 @@ public class InventarioJugador : MonoBehaviour
 
     public void RegistrarDanoRecibido(int dano)
     {
-        if (dano <= 0) return;
+        if (dano <= 0)
+            return;
+
         DanoRecibidoTotal += dano;
         EstadisticasCambiadas?.Invoke();
     }
@@ -153,6 +186,7 @@ public class InventarioJugador : MonoBehaviour
     public string CalcularRangoFinal()
     {
         int puntos = 100;
+
         if (TiempoJugado > 420f) puntos -= 25;
         else if (TiempoJugado > 240f) puntos -= 10;
 
@@ -169,7 +203,9 @@ public class InventarioJugador : MonoBehaviour
 
     public void Escribir(DatosPartida datos)
     {
-        if (datos == null) return;
+        if (datos == null)
+            return;
+
         datos.pocionesInicializadas = true;
         datos.pociones = Pociones;
         datos.rupias = Rupias;
@@ -186,7 +222,8 @@ public class InventarioJugador : MonoBehaviour
 
     public void Restaurar(DatosPartida datos)
     {
-        if (datos == null) return;
+        if (datos == null)
+            return;
 
         Pociones = datos.pocionesInicializadas ? Mathf.Clamp(datos.pociones, 0, MaxPociones) : PocionesIniciales;
         Rupias = Mathf.Max(0, datos.rupias);
@@ -213,4 +250,6 @@ public class InventarioJugador : MonoBehaviour
         InventarioCambiado?.Invoke();
         EstadisticasCambiadas?.Invoke();
     }
+
+    #endregion
 }

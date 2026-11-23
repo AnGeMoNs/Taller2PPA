@@ -3,10 +3,20 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-// Minimapa interactivo de la mazmorra (tecla M) que muestra salas, estado, enemigos, cofres y jugador
+// Minimapa 2D de la mazmorra (tecla M) con salas, puerta, cofres, santuario y enemigos
 public class MinimapaMazmorra : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
     private const string PrefMostrarMapa = "Mazmorra.MostrarMinimapa";
+    private const float EscalaMapa = 3.1f;
+    private const float CentroMundoZ = 6f;
+
+    private static readonly Color ColorNoVisitada = new Color(0.14f, 0.16f, 0.18f, 0.72f);
+    private static readonly Color ColorVisitada = new Color(0.25f, 0.30f, 0.34f, 0.92f);
+    private static readonly Color ColorCompletada = new Color(0.20f, 0.56f, 0.34f, 0.95f);
+    private static readonly Color ColorActual = new Color(0.86f, 0.68f, 0.28f, 0.98f);
+    private static readonly Color ColorAltar = new Color(0.45f, 0.34f, 0.62f, 0.92f);
 
     private Transform jugador;
     private ProgresoPartida progreso;
@@ -18,21 +28,12 @@ public class MinimapaMazmorra : MonoBehaviour
     private RectTransform contenedorMapa;
     private RectTransform flechaJugador;
     private Image imagenPuerta;
+    private RectTransform puntoSantuario;
+
     private readonly Dictionary<string, Image> celdasSalas = new Dictionary<string, Image>();
     private readonly List<RectTransform> puntosEnemigos = new List<RectTransform>();
     private readonly List<RectTransform> puntosCofres = new List<RectTransform>();
-    private RectTransform puntoSantuario;
     private float siguienteRefrescoEntidades;
-
-    private static readonly Color ColorNoVisitada = new Color(0.14f, 0.16f, 0.18f, 0.72f);
-    private static readonly Color ColorVisitada = new Color(0.25f, 0.30f, 0.34f, 0.92f);
-    private static readonly Color ColorCompletada = new Color(0.20f, 0.56f, 0.34f, 0.95f);
-    private static readonly Color ColorActual = new Color(0.86f, 0.68f, 0.28f, 0.98f);
-    private static readonly Color ColorAltar = new Color(0.45f, 0.34f, 0.62f, 0.92f);
-
-    // Mapeo de mundo (x in [-18,18], z in [-18,30]) a espacio local del minimapa (164 x 164)
-    private const float EscalaMapa = 3.1f;
-    private const float CentroMundoZ = 6f;
 
     public bool Visible { get; private set; } = true;
 
@@ -45,6 +46,38 @@ public class MinimapaMazmorra : MonoBehaviour
             PlayerPrefs.Save();
         }
     }
+
+    #endregion
+
+    #region UNITY_METHODS
+
+    private void Update()
+    {
+        if (raizPanel == null)
+            return;
+
+        if (GameManager.Instance != null && GameManager.Instance.EnJuego && Input.GetKeyDown(KeyCode.M))
+        {
+            EstablecerVisible(!Visible);
+            AudioManager.Reproducir("UI_Click", null, 0.45f, 1.15f);
+        }
+
+        if (!Visible || jugador == null)
+            return;
+
+        ActualizarSalas();
+        ActualizarJugador();
+
+        if (Time.unscaledTime >= siguienteRefrescoEntidades)
+        {
+            siguienteRefrescoEntidades = Time.unscaledTime + 0.18f;
+            ActualizarEntidades();
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
 
     public void Construir(
         Transform padreCanvas,
@@ -76,10 +109,8 @@ public class MinimapaMazmorra : MonoBehaviour
         fondo.color = new Color(0.06f, 0.08f, 0.09f, 0.88f);
         fondo.raycastTarget = false;
 
-        // Borde dorado superior
         CrearCajaUI(rt, "Borde", new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -3f), Vector2.zero, new Color(0.84f, 0.68f, 0.36f));
 
-        // Titulo del minimapa
         GameObject txtObj = new GameObject("TituloMapa", typeof(RectTransform), typeof(TextMeshProUGUI));
         txtObj.transform.SetParent(rt, false);
         RectTransform rtTxt = txtObj.GetComponent<RectTransform>();
@@ -87,6 +118,7 @@ public class MinimapaMazmorra : MonoBehaviour
         rtTxt.anchorMax = new Vector2(1f, 1f);
         rtTxt.offsetMin = new Vector2(8f, -24f);
         rtTxt.offsetMax = new Vector2(-8f, -4f);
+
         TMP_Text titulo = txtObj.GetComponent<TextMeshProUGUI>();
         titulo.font = fuente;
         titulo.text = "MAPA  ·  [M]";
@@ -95,7 +127,6 @@ public class MinimapaMazmorra : MonoBehaviour
         titulo.alignment = TextAlignmentOptions.Center;
         titulo.raycastTarget = false;
 
-        // Area interna centrada para dibujar salas y marcadores
         GameObject area = new GameObject("AreaMapa", typeof(RectTransform));
         area.transform.SetParent(rt, false);
         contenedorMapa = area.GetComponent<RectTransform>();
@@ -110,15 +141,11 @@ public class MinimapaMazmorra : MonoBehaviour
         CrearSalaMapa("Trampas", new Vector2(0f, 12f));
         CrearSalaMapa("Altar", new Vector2(0f, 24f));
 
-        // Indicador de reja norte en z = 18
         RectTransform rtPuerta = CrearMarcador("PuertaNorte", new Vector2(14f, 4f), new Color(0.92f, 0.24f, 0.20f));
         rtPuerta.anchoredPosition = MundoAMapa(new Vector3(0f, 0f, 18f));
         imagenPuerta = rtPuerta.GetComponent<Image>();
 
-        // Indicador del santuario
         puntoSantuario = CrearMarcador("Marcador_Santuario", new Vector2(6f, 6f), new Color(0.35f, 0.95f, 1f));
-
-        // Flecha/marcador del jugador
         flechaJugador = CrearMarcador("Marcador_Jugador", new Vector2(8f, 11f), new Color(1f, 0.96f, 0.72f));
 
         raizPanel.SetActive(Visible);
@@ -140,6 +167,7 @@ public class MinimapaMazmorra : MonoBehaviour
         rt.anchorMin = new Vector2(0.5f, 0.5f);
         rt.anchorMax = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = tamano;
+
         Image img = go.GetComponent<Image>();
         img.color = color;
         img.raycastTarget = false;
@@ -155,6 +183,7 @@ public class MinimapaMazmorra : MonoBehaviour
         rt.anchorMax = aMax;
         rt.offsetMin = oMin;
         rt.offsetMax = oMax;
+
         Image img = go.GetComponent<Image>();
         img.color = color;
         img.raycastTarget = false;
@@ -169,28 +198,9 @@ public class MinimapaMazmorra : MonoBehaviour
     {
         Visible = activo;
         PreferenciaVisible = activo;
-        if (raizPanel != null) raizPanel.SetActive(Visible);
-    }
-
-    private void Update()
-    {
-        if (raizPanel == null) return;
-
-        if (GameManager.Instance != null && GameManager.Instance.EnJuego && Input.GetKeyDown(KeyCode.M))
+        if (raizPanel != null)
         {
-            EstablecerVisible(!Visible);
-            AudioManager.Reproducir("UI_Click", null, 0.45f, 1.15f);
-        }
-
-        if (!Visible || jugador == null) return;
-
-        ActualizarSalas();
-        ActualizarJugador();
-
-        if (Time.unscaledTime >= siguienteRefrescoEntidades)
-        {
-            siguienteRefrescoEntidades = Time.unscaledTime + 0.18f;
-            ActualizarEntidades();
+            raizPanel.SetActive(Visible);
         }
     }
 
@@ -202,7 +212,8 @@ public class MinimapaMazmorra : MonoBehaviour
         {
             string id = kv.Key;
             Image img = kv.Value;
-            if (img == null) continue;
+            if (img == null)
+                continue;
 
             if (id == salaActual)
             {
@@ -235,7 +246,9 @@ public class MinimapaMazmorra : MonoBehaviour
 
     private void ActualizarJugador()
     {
-        if (flechaJugador == null || jugador == null) return;
+        if (flechaJugador == null || jugador == null)
+            return;
+
         flechaJugador.anchoredPosition = MundoAMapa(jugador.position);
         flechaJugador.localRotation = Quaternion.Euler(0f, 0f, -jugador.eulerAngles.y);
         flechaJugador.SetAsLastSibling();
@@ -243,7 +256,6 @@ public class MinimapaMazmorra : MonoBehaviour
 
     private void ActualizarEntidades()
     {
-        // Santuario
         if (puntoSantuario != null && mejoras != null && mejoras.Santuario != null)
         {
             puntoSantuario.gameObject.SetActive(true);
@@ -254,7 +266,6 @@ public class MinimapaMazmorra : MonoBehaviour
             puntoSantuario.gameObject.SetActive(false);
         }
 
-        // Cofres aun cerrados
         int idxCofre = 0;
         if (mejoras != null)
         {
@@ -262,28 +273,41 @@ public class MinimapaMazmorra : MonoBehaviour
             for (int i = 0; i < cofres.Count; i++)
             {
                 CofreTesoro c = cofres[i];
-                if (c == null || !c.Disponible) continue;
+                if (c == null || !c.Disponible)
+                    continue;
+
                 RectTransform rt = ObtenerPunto(puntosCofres, idxCofre++, "PuntoCofre", new Vector2(5f, 5f), new Color(1f, 0.84f, 0.24f));
                 rt.anchoredPosition = MundoAMapa(c.transform.position);
                 rt.gameObject.SetActive(true);
             }
         }
-        for (int i = idxCofre; i < puntosCofres.Count; i++) puntosCofres[i].gameObject.SetActive(false);
+        for (int i = idxCofre; i < puntosCofres.Count; i++)
+        {
+            puntosCofres[i].gameObject.SetActive(false);
+        }
 
-        // Enemigos vivos
         Enemy[] enemigos = FindObjectsByType<Enemy>(FindObjectsSortMode.None);
         int idxEnemigo = 0;
         for (int i = 0; i < enemigos.Length; i++)
         {
             Enemy e = enemigos[i];
-            if (e == null || e.Muerto || !e.gameObject.activeInHierarchy) continue;
-            RectTransform rt = ObtenerPunto(puntosEnemigos, idxEnemigo++, "PuntoEnemigo",
+            if (e == null || e.Muerto || !e.gameObject.activeInHierarchy)
+                continue;
+
+            RectTransform rt = ObtenerPunto(
+                puntosEnemigos,
+                idxEnemigo++,
+                "PuntoEnemigo",
                 e.EsElite ? new Vector2(8f, 8f) : new Vector2(5.5f, 5.5f),
-                e.EsElite ? new Color(1f, 0.25f, 0.85f) : new Color(0.95f, 0.22f, 0.20f));
+                e.EsElite ? new Color(1f, 0.25f, 0.85f) : new Color(0.95f, 0.22f, 0.20f)
+            );
             rt.anchoredPosition = MundoAMapa(e.transform.position);
             rt.gameObject.SetActive(true);
         }
-        for (int i = idxEnemigo; i < puntosEnemigos.Count; i++) puntosEnemigos[i].gameObject.SetActive(false);
+        for (int i = idxEnemigo; i < puntosEnemigos.Count; i++)
+        {
+            puntosEnemigos[i].gameObject.SetActive(false);
+        }
     }
 
     private RectTransform ObtenerPunto(List<RectTransform> lista, int indice, string prefijo, Vector2 tam, Color color)
@@ -292,10 +316,13 @@ public class MinimapaMazmorra : MonoBehaviour
         {
             lista.Add(CrearMarcador(prefijo + "_" + lista.Count, tam, color));
         }
+
         RectTransform rt = lista[indice];
         rt.sizeDelta = tam;
         Image img = rt.GetComponent<Image>();
         if (img != null) img.color = color;
         return rt;
     }
+
+    #endregion
 }

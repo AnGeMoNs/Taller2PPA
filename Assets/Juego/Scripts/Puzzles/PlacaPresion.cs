@@ -1,8 +1,11 @@
 using UnityEngine;
 
-// Controla el hundimiento y la iluminacion de una placa de presion del puzzle de cajas
+// Controla el hundimiento y color de cada placa de presion del puzzle de cajas
 public class PlacaPresion : MonoBehaviour
 {
+    #region CLASS_VARIABLES
+
+    [Header("Referencias")]
     [SerializeField] private Transform plataforma;
     [SerializeField] private Renderer[] indicadores;
     [SerializeField] private Light luz;
@@ -18,12 +21,9 @@ public class PlacaPresion : MonoBehaviour
     private MaterialPropertyBlock bloque;
     private bool? ultimoEstado;
 
-    public void ConfigurarVisual(Transform pad, Renderer[] renders, Light luzIndicadora)
-    {
-        plataforma = pad;
-        indicadores = renders;
-        luz = luzIndicadora;
-    }
+    #endregion
+
+    #region UNITY_METHODS
 
     private void Awake()
     {
@@ -36,18 +36,10 @@ public class PlacaPresion : MonoBehaviour
         AplicarColor(false);
     }
 
-    public void EstablecerActiva(bool estado)
-    {
-        activa = estado;
-        if (ultimoEstado != estado)
-        {
-            AplicarColor(estado);
-        }
-    }
-
     private void Update()
     {
-        if (plataforma == null) return;
+        if (plataforma == null)
+            return;
 
         float objetivo = activa ? alturaBase - hundimiento : alturaBase;
         if (Mathf.Abs(alturaActual - objetivo) > 0.0005f)
@@ -56,6 +48,26 @@ public class PlacaPresion : MonoBehaviour
             Vector3 pos = plataforma.localPosition;
             pos.y = alturaActual;
             plataforma.localPosition = pos;
+        }
+    }
+
+    #endregion
+
+    #region CLASS_METHODS
+
+    public void ConfigurarVisual(Transform pad, Renderer[] renders, Light luzIndicadora)
+    {
+        plataforma = pad;
+        indicadores = renders;
+        luz = luzIndicadora;
+    }
+
+    public void EstablecerActiva(bool estado)
+    {
+        activa = estado;
+        if (ultimoEstado != estado)
+        {
+            AplicarColor(estado);
         }
     }
 
@@ -70,7 +82,9 @@ public class PlacaPresion : MonoBehaviour
             for (int i = 0; i < indicadores.Length; i++)
             {
                 Renderer r = indicadores[i];
-                if (r == null) continue;
+                if (r == null)
+                    continue;
+
                 r.GetPropertyBlock(bloque);
                 bloque.SetColor(PropColor, color);
                 bloque.SetColor(PropBaseColor, color);
@@ -85,4 +99,6 @@ public class PlacaPresion : MonoBehaviour
             luz.intensity = estado ? 2.2f : 0.7f;
         }
     }
+
+    #endregion
 }
